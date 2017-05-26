@@ -92,6 +92,23 @@ impl<'a> B2Authorization<'a> {
             Ok(serde_json::from_reader(resp)?)
         }
     }
+    pub fn list_all_file_names<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
+                                  delimiter: Option<char>, client: &Client)
+        -> Result<FileNameListing<IT>, B2Error>
+        where for<'de> IT: Deserialize<'de>
+    {
+        let (mut fnl, mut name) = self.list_file_names(bucket_id, None, files_per_request, prefix,
+                                                  delimiter, client)?;
+        while name != None {
+            let (list, n) = self.list_file_names(bucket_id, name.as_ref().map(|s| s.as_str()),
+                files_per_request, prefix, delimiter, client)?;
+
+            fnl.files.extend(list.files);
+            fnl.folders.extend(list.folders);
+            name = n;
+        }
+        Ok(fnl)
+    }
     pub fn list_file_names<IT>(&self, bucket_id: &str, start_file_name: Option<&str>, max_file_count: u32,
                                prefix: Option<&str>, delimiter: Option<char>, client: &Client)
         -> Result<(FileNameListing<IT>, Option<String>), B2Error>
@@ -307,6 +324,27 @@ impl<'a> B2Authorization<'a> {
                 folders: folders
             }, lfns.next_file_name, lfns.next_file_id))
         }
+    }
+    pub fn list_all_file_versions<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
+                                  delimiter: Option<char>, client: &Client)
+        -> Result<FileVersionListing<IT>, B2Error>
+        where for<'de> IT: Deserialize<'de>
+    {
+        let (mut fvl, mut name, mut id) = self.list_file_versions(bucket_id, None, None, files_per_request, prefix,
+                                                     delimiter, client)?;
+        while name != None || id != None {
+
+            let (list, n, i) = self.list_file_versions(bucket_id, name.as_ref().map(|s| s.as_str()),
+                id.as_ref().map(|s| s.as_str()), files_per_request, prefix, delimiter, client)?;
+
+            fvl.files.extend(list.files);
+            fvl.folders.extend(list.folders);
+            fvl.hide_markers.extend(list.hide_markers);
+            fvl.unfinished_large_files.extend(list.unfinished_large_files);
+            name = n;
+            id = i;
+        }
+        Ok(fvl)
     }
     pub fn delete_file_version(&self, file_name: &str, file_id: &str, client: &Client)
         -> Result<(),B2Error>
