@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Alice Ryhl <alice@ryhl.io>"]
 description = "Can send api requests to the backblaze b2 api."
 repository = "https://github.com/Darksonn/backblaze-b2-rs"
-homepage = "https://github.com/Darksonn/backblaze-b2-rs"
 readme = "README.md"
 keywords = ["backblaze", "b2", "backup", "api"]
 categories = ["api-bindings"]
