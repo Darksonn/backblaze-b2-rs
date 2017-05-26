@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["backblaze", "b2", "backup", "api"]
 categories = ["api-bindings"]
 license = "MIT"
+exclude = ["credentials.txt"]
 
 [dependencies]
 base64 = "~0.5.0"
