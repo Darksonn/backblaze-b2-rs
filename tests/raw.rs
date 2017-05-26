@@ -22,10 +22,12 @@ use backblaze_b2::raw::files::*;
 
 use serde_json::value::Value;
 
-fn make_client() -> Client {
+fn make_connector() -> HttpsConnector<NativeTlsClient> {
     let ssl = NativeTlsClient::new().unwrap();
-    let connector = HttpsConnector::new(ssl);
-    Client::with_connector(connector)
+    HttpsConnector::new(ssl)
+}
+fn make_client() -> Client {
+    Client::with_connector(make_connector())
 }
 
 fn rand_string(len: usize) -> String {
@@ -83,8 +85,8 @@ fn main_test() {
     let file = {
         let upload_auth = auth.get_upload_url(&bucket.bucket_id, &client).unwrap();
 
-        let file: MoreFileInfo = upload_auth.upload_file(&file_data[..], "test_file.png".to_owned(), None, 9,
-        sha1.clone(), &client).unwrap();
+        let file: MoreFileInfo = upload_auth.upload_file(&mut&file_data[..], "test_file.png".to_owned(), None, 9,
+        sha1.clone(), &make_connector()).unwrap();
         assert_eq!(&file.file_name, "test_file.png");
         assert_eq!(file.account_id, auth.credentials.id);
         assert_eq!(file.content_sha1, sha1);

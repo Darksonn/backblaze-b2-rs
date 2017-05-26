@@ -4,6 +4,7 @@
 extern crate base64;
 extern crate serde;
 extern crate serde_json;
+extern crate core;
 
 #[macro_use]
 extern crate serde_derive;
@@ -42,6 +43,11 @@ impl From<serde_json::Error> for B2Error {
 impl From<hyper::error::Error> for B2Error {
     fn from(err: hyper::error::Error) -> B2Error {
         B2Error::HyperError(err)
+    }
+}
+impl From<hyper::error::ParseError> for B2Error {
+    fn from(err: hyper::error::ParseError) -> B2Error {
+        B2Error::HyperError(hyper::error::Error::Uri(err))
     }
 }
 impl From<std::io::Error> for B2Error {

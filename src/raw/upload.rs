@@ -1,9 +1,12 @@
-use std::io::Read;
+use std::io::{Read, copy};
 
-use hyper::{self, Client};
+use hyper::{self, Client, Url};
 use hyper::client::Body;
+use hyper::client::request::Request;
 use hyper::header::{Headers,ContentLength,ContentType};
 use hyper::mime::Mime;
+use hyper::method::Method;
+use hyper::net::{Streaming, NetworkConnector, NetworkStream};
 
 use serde::Deserialize;
 use serde_json;
@@ -59,24 +62,63 @@ impl<'a> B2Authorization<'a> {
 }
 impl UploadAuthorization {
     /// Some arguments are String, since the hyper headers require Strings
-    pub fn upload_file<InfoType, R: Read>(&self, mut file: R, file_name: String, content_type: Option<Mime>,
-                                 content_length: u64, content_sha1: String, client: &Client)
+    pub fn upload_file<InfoType, R: Read, C, S>(&self, file: &mut R, file_name: String, content_type: Option<Mime>,
+                                 content_length: u64, content_sha1: String, connector: &C)
         -> Result<MoreFileInfo<InfoType>, B2Error>
-        where for<'de> InfoType: Deserialize<'de>, R: Sized
+        where for<'de> InfoType: Deserialize<'de>, R: Sized, C: NetworkConnector<Stream=S>,
+              S: Into<Box<NetworkStream + Send>>
     {
-        let mut headers = Headers::new();
-        headers.set(self.auth_header());
-        headers.set(XBzFileName(file_name));
-        headers.set(XBzContentSha1(content_sha1));
-        headers.set(ContentLength(content_length));
-        headers.set(ContentType(match content_type {
-            Some(v) => v,
-            None => "b2/x-auto".parse().unwrap()
-        }));
-        let resp = client.post(&self.upload_url)
-            .body(Body::SizedBody(&mut file, content_length))
-            .headers(headers)
-            .send()?;
+        let mut ufr = self.create_upload_file_request(
+            file_name, content_type, content_length, content_sha1, connector)?;
+        copy(file, &mut ufr)?;
+        ufr.finish()
+    }
+    pub fn create_upload_file_request<C,S>(&self, file_name: String, content_type: Option<Mime>,
+                                      content_length: u64, content_sha1: String, connector: &C)
+        -> Result<UploadFileRequest, B2Error>
+        where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>>
+    {
+        let url: Url = Url::parse(&self.upload_url)?;
+        let mut request = Request::with_connector(Method::Post, url, connector)?;
+        {
+            let headers: &mut Headers = request.headers_mut();
+            headers.set(self.auth_header());
+            headers.set(XBzFileName(file_name));
+            headers.set(XBzContentSha1(content_sha1));
+            headers.set(ContentLength(content_length));
+            headers.set(ContentType(match content_type {
+                Some(v) => v,
+                None => "b2/x-auto".parse().unwrap()
+            }));
+        }
+        Ok(UploadFileRequest { request: request.start()? })
+    }
+}
+header! { (XBzFileName, "X-Bz-File-Name") => [String] }
+header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
+
+pub struct UploadFileRequest {
+    request: Request<Streaming>
+}
+impl ::std::io::Write for UploadFileRequest {
+    fn write(&mut self, msg: &[u8]) -> ::std::io::Result<usize> {
+        self.request.write(msg)
+    }
+    fn flush(&mut self) -> ::std::io::Result<()> {
+        self.request.flush()
+    }
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), ::std::io::Error> {
+        self.request.write_all(buf)
+    }
+    fn write_fmt(&mut self, fmt: ::core::fmt::Arguments) -> Result<(), ::std::io::Error> {
+        self.request.write_fmt(fmt)
+    }
+}
+impl UploadFileRequest {
+    pub fn finish<InfoType>(self) -> Result<MoreFileInfo<InfoType>, B2Error>
+        where for<'de> InfoType: Deserialize<'de>
+    {
+        let resp = self.request.send()?;
         if resp.status != hyper::status::StatusCode::Ok {
             Err(B2Error::from_response(resp))
         } else {
@@ -84,7 +126,4 @@ impl UploadAuthorization {
         }
     }
 }
-header! { (XBzFileName, "X-Bz-File-Name") => [String] }
-header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
-
 
