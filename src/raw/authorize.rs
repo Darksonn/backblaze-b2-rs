@@ -15,7 +15,16 @@ use B2AuthHeader;
 /// This struct derives Deserialize, so a simple way to read this from a file would be:
 ///
 /// ```rust,no_run
-/// serde_json::from_reader(File::open("credentials.txt").unwrap()).unwrap()
+/// extern crate serde;
+/// extern crate serde_json;
+/// use std::fs::File;
+///
+///# extern crate backblaze_b2;
+///# use backblaze_b2::raw::authorize::B2Credentials;
+///#
+///# fn main() {
+///     serde_json::from_reader::<_,B2Credentials>(File::open("credentials.txt").unwrap()).unwrap();
+///# }
 /// ```
 #[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct B2Credentials {
@@ -24,13 +33,6 @@ pub struct B2Credentials {
 }
 impl B2Credentials {
     /// This function concatenates the id and the key stored in this struct with a colon in between
-    ///
-    /// ```rust
-    /// assert_eq!(
-    ///     B2Credentials { id: "abc".to_owned(), key: "def".to_owned() }.id_key(),
-    ///     "abc:def"
-    /// );
-    /// ```
     pub fn id_key(&self) -> String {
         format!("{}:{}", self.id, self.key)
     }
@@ -41,6 +43,7 @@ impl B2Credentials {
     }
     /// This function performs a [b2_authorize_account][1] api call to the backblaze api and returns an
     /// authorization token.
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
     pub fn authorize<'a>(&'a self, client: &Client) -> Result<B2Authorization<'a>,B2Error> {
         let resp = try!(client.get("https://api.backblazeb2.com/b2api/v1/b2_authorize_account")
