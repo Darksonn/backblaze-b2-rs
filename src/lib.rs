@@ -1,6 +1,26 @@
 #![feature(conservative_impl_trait)]
 #![feature(io)]
 
+//! The backblaze api requires https, so you need to provide a Client with a https connector.
+//!
+//! Such a client can be created with the api call below:
+//!
+//! ```rust,ignore
+//! extern crate hyper;
+//! extern crate hyper_native_tls;
+//! use hyper::Client;
+//! use hyper::net::HttpsConnector;
+//! use hyper_native_tls::NativeTlsClient;
+//!
+//! let ssl = NativeTlsClient::new().unwrap();
+//! let connector = HttpsConnector::new(ssl);
+//! let client = Client::with_connector(connector);
+//! ```
+//!
+//! Unfortunately because of the hyper api design, the upload functionality in this library
+//! requires the connector instead of the client, and since the client consumes the connector,
+//! you'll have to make two of them.
+
 extern crate base64;
 extern crate serde;
 extern crate serde_json;
@@ -20,6 +40,7 @@ use hyper::client::Response;
 
 header! { (B2AuthHeader, "Authorization") => [String] }
 
+/// When the B2 api returns an error, it is a json-object that can be deserialized into this object
 #[derive(Deserialize, Debug)]
 pub struct B2ErrorMessage {
     code: String,
@@ -27,6 +48,7 @@ pub struct B2ErrorMessage {
     status: u32
 }
 
+/// An error caused while using any of the B2 apis
 #[derive(Debug)]
 pub enum B2Error {
     HyperError(hyper::error::Error),

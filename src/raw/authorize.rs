@@ -11,18 +11,37 @@ use serde_json;
 use B2Error;
 use B2AuthHeader;
 
+/// Contains the backblaze id and key needed to authorize access to the backblaze b2 api
+/// This struct derives Deserialize, so a simple way to read this from a file would be:
+///
+/// ```rust,no_run
+/// serde_json::from_reader(File::open("credentials.txt").unwrap()).unwrap()
+/// ```
 #[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct B2Credentials {
     pub id: String,
     pub key: String
 }
 impl B2Credentials {
+    /// This function concatenates the id and the key stored in this struct with a colon in between
+    ///
+    /// ```rust
+    /// assert_eq!(
+    ///     B2Credentials { id: "abc".to_owned(), key: "def".to_owned() }.id_key(),
+    ///     "abc:def"
+    /// );
+    /// ```
     pub fn id_key(&self) -> String {
         format!("{}:{}", self.id, self.key)
     }
+    /// This function returns the value of the Authorization header needed to perform a
+    /// b2_authorize_account api call.
     pub fn auth_string(&self) -> String {
         format!("Basic {}", b64encode(&self.id_key()))
     }
+    /// This function performs a [b2_authorize_account][1] api call to the backblaze api and returns an
+    /// authorization token.
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
     pub fn authorize<'a>(&'a self, client: &Client) -> Result<B2Authorization<'a>,B2Error> {
         let resp = try!(client.get("https://api.backblazeb2.com/b2api/v1/b2_authorize_account")
             .header(self.clone())
@@ -57,6 +76,7 @@ struct B2AuthResponse {
     recommended_part_size: usize,
     absolute_minimum_part_size: usize
 }
+/// This struct contains the needed information to perform any b2 api call
 #[derive(Debug)]
 pub struct B2Authorization<'a> {
     pub credentials: &'a B2Credentials,
@@ -77,6 +97,7 @@ impl<'a> B2Authorization<'a> {
             absolute_minimum_part_size: resp.absolute_minimum_part_size
         }
     }
+    /// Returns a hyper header that correctly authorizes an api call to backblaze
     pub fn auth_header(&self) -> B2AuthHeader {
         B2AuthHeader(self.authorization_token.clone())
     }

@@ -20,6 +20,7 @@ header! { (XBzUploadTimestamp, "X-Bz-Upload-Timestamp") => [String] }
 header! { (XBzFileName, "X-Bz-File-Name") => [String] }
 header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 
+/// Contains the authorization and access data concerning a download authorization on backblaze
 #[derive(Serialize,Deserialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadAuthorization<'a> {
@@ -29,9 +30,11 @@ pub struct DownloadAuthorization<'a> {
     pub download_url: &'a str
 }
 impl<'a> DownloadAuthorization<'a> {
+    /// Returns a hyper header that can be added to download requests on the backblaze api.
     pub fn auth_header(&self) -> B2AuthHeader {
         B2AuthHeader(self.authorization_token.clone())
     }
+    /// Tests whether this download authorization allows access to the given bucket
     pub fn allows_bucket(&self, bucket: &str) -> bool {
         match self.bucket_id {
             Some(ref s) => s == bucket,
@@ -103,6 +106,9 @@ fn handle_download_response<InfoType>(resp: Response)
 
 impl<'a> DownloadAuthorization<'a> {
 
+    /// Performs a [b2_download_file_by_id][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
     pub fn download_file_by_id<InfoType>(&self, file_id: &str, client: &Client)
         -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -122,6 +128,10 @@ impl<'a> DownloadAuthorization<'a> {
             handle_download_response(resp)
         }
     }
+    /// Performs a [b2_download_file_by_id][1] api call. This function specifies the range of the
+    /// file to download, and the range_max parameter is inclusive.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
     pub fn download_range_by_id<InfoType>(&self, file_id: &str, range_min: u64, range_max: u64, client: &Client)
         -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -142,6 +152,9 @@ impl<'a> DownloadAuthorization<'a> {
             handle_download_response(resp)
         }
     }
+    /// Performs a [b2_download_file_by_name][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
     pub fn download_file_by_name<InfoType>(&self, bucket_name: &str, file_name: &str, client: &Client)
         -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -158,6 +171,10 @@ impl<'a> DownloadAuthorization<'a> {
             handle_download_response(resp)
         }
     }
+    /// Performs a [b2_download_file_by_name][1] api call. This function specifies the range of the
+    /// file to download, and the range_max parameter is inclusive.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
     pub fn download_range_by_name<InfoType>(&self, bucket_name: &str, file_name: &str,
                                             range_min: u64, range_max: u64, client: &Client)
         -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
@@ -180,6 +197,8 @@ impl<'a> DownloadAuthorization<'a> {
 header! { (B2Range, "Range") => [String] }
 
 impl<'a> B2Authorization<'a> {
+    /// Use an account authorization to create a DownloadAuthorization. This is preferred unless the
+    /// restrictions on which files can be downloaded are needed.
     pub fn to_download_authorization(&self) -> DownloadAuthorization {
         DownloadAuthorization {
             authorization_token: self.authorization_token.clone(),
@@ -188,6 +207,9 @@ impl<'a> B2Authorization<'a> {
             download_url: &self.download_url
         }
     }
+    /// Performs a [b2_get_download_authorization] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_get_download_authorization.html
     pub fn get_download_authorization<'s>(&'s self, bucket_id: &str, file_name_prefix: Option<&str>,
                                       expires_in_seconds: u32, client: &Client)
         -> Result<DownloadAuthorization<'s>, B2Error>
@@ -239,6 +261,12 @@ impl<'a> B2Authorization<'a> {
     }
 }
 
+/// Performs a [b2_download_file_by_name][1] api call.
+///
+/// This function does not include any authorization in the request, so it can only be used to
+/// access public buckets.
+///
+///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
 pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str, client: &Client)
     -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
     where for<'de> InfoType: Deserialize<'de>
@@ -254,6 +282,13 @@ pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, fi
         handle_download_response(resp)
     }
 }
+/// Performs a [b2_download_file_by_name][1] api call. This function specifies the range of the
+/// file to download, and the range_max parameter is inclusive.
+///
+/// This function does not include any authorization in the request, so it can only be used to
+/// access public buckets.
+///
+///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
 pub fn download_range_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str,
                                         range_min: u64, range_max: u64, client: &Client)
     -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>

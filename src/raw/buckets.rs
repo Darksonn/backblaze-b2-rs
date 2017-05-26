@@ -11,11 +11,19 @@ use serde_json::{self, Value as JsonValue};
 use B2Error;
 use raw::authorize::B2Authorization;
 
+/// Specifies the type of a bucket on backblaze
 #[derive(Debug,Clone,Copy,Eq,PartialEq)]
 pub enum BucketType {
     Public, Private, Snapshot
 }
 impl BucketType {
+    /// Creates a BucketType from a string. The strings are the ones used by the backblaze api
+    ///
+    /// ```rust
+    /// assert_eq!("allPublic", Some(BucketType::Public));
+    /// assert_eq!("allPrivate", Some(BucketType::Private));
+    /// assert_eq!("snapshot", Some(BucketType::Snapshot));
+    /// ```
     pub fn from_str(s: &str) -> Option<BucketType> {
         match s {
             "allPublic" => Some(BucketType::Public),
@@ -24,6 +32,7 @@ impl BucketType {
             _ => None
         }
     }
+    /// This function returns the string needed to specify the bucket type to the backblaze api
     pub fn as_str(&self) -> &'static str {
         match *self {
             BucketType::Public => "allPublic",
@@ -73,6 +82,8 @@ impl Serialize for BucketType {
     }
 }
 
+/// This struct contains a lifecycle rule as specified in the [backblaze b2
+/// documentation](https://www.backblaze.com/b2/docs/lifecycle_rules.html).
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LifecycleRule {
@@ -81,6 +92,7 @@ pub struct LifecycleRule {
     file_name_prefix: String
 }
 
+/// This function contains various information about a backblaze bucket
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Bucket<InfoType=JsonValue> {
@@ -107,6 +119,9 @@ struct CreateBucketRequest<'a, InfoType> {
     lifecycle_rules: Vec<LifecycleRule>
 }
 impl<'a> B2Authorization<'a> {
+    /// Performs a [b2_list_buckets][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_list_buckets.html
     pub fn list_buckets<InfoType>(&self, client: &Client)
         -> Result<Vec<Bucket<InfoType>>,B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -124,6 +139,9 @@ impl<'a> B2Authorization<'a> {
             Ok(buckets.buckets)
         }
     }
+    /// Performs a [b2_create_bucket][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
     pub fn create_bucket<InfoType>(&self,
                                    bucket_name: &str,
                                    bucket_type: BucketType,
@@ -155,6 +173,10 @@ impl<'a> B2Authorization<'a> {
             Ok(bucket)
         }
     }
+    /// Performs a [b2_create_bucket][1] api call. This function initializes the bucket with no
+    /// info.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
     pub fn create_bucket_no_info(&self,
                                    bucket_name: &str,
                                    bucket_type: BucketType,
@@ -165,6 +187,9 @@ impl<'a> B2Authorization<'a> {
         self.create_bucket(bucket_name, bucket_type, JsonValue::Object(serde_json::map::Map::new()),
             lifecycle_rules, client)
     }
+    /// Performs a [b2_delete_bucket][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
     pub fn delete_bucket_id<InfoType>(&self, bucket_id: &str, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>
         where for <'de> InfoType: Deserialize<'de>
@@ -186,6 +211,9 @@ impl<'a> B2Authorization<'a> {
             Ok(bucket)
         }
     }
+    /// Performs a [b2_delete_bucket][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
     pub fn delete_bucket<InfoType>(&self, bucket: &Bucket<InfoType>, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>
         where for <'de> InfoType: Deserialize<'de>
