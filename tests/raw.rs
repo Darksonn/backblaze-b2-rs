@@ -36,9 +36,9 @@ fn rand_string(len: usize) -> String {
 #[test]
 fn main_test() {
     let client = make_client();
-    let cred_file = File::open("credentials.txt") match {
+    let cred_file = match File::open("credentials.txt") {
         Ok(f) => f,
-        Err(e) =>
+        Err(_) =>
             panic!("The test requires the credentials for b2 to be placed in the file \'credentials.txt\' which contains a json object with the properties \"id\" and \"key\".")
     };
     let cred: B2Credentials = serde_json::from_reader(cred_file).unwrap();
