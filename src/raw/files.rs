@@ -11,6 +11,9 @@ use serde_json::{self, Value as JsonValue};
 use B2Error;
 use raw::authorize::B2Authorization;
 
+/// Contains information for a b2 file.
+/// This struct is returned by the function get_file_info and the functions for uploading files.
+/// This struct contains more information about the file compared to the FileInfo struct.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MoreFileInfo<InfoType=JsonValue> {
@@ -25,6 +28,23 @@ pub struct MoreFileInfo<InfoType=JsonValue> {
     pub action: FileType,
     pub upload_timestamp: u64,
 }
+impl<IT> Into<FileInfo<IT>> for MoreFileInfo<IT> {
+    fn into(self) -> FileInfo<IT> {
+        FileInfo {
+            file_id: self.file_id,
+            file_name: self.file_name,
+            content_length: self.content_length,
+            content_type: self.content_type,
+            content_sha1: self.content_sha1,
+            file_info: self.file_info,
+            upload_timestamp: self.upload_timestamp,
+        }
+    }
+}
+/// Contains information for a b2 file.
+/// This struct is returned by the file listing functions and the functions for downloading files.
+/// Some other functions return additional information about the file than this struct, and they
+/// use the struct MoreFileInfo.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileInfo<InfoType=JsonValue> {
@@ -36,11 +56,15 @@ pub struct FileInfo<InfoType=JsonValue> {
     pub file_info: InfoType,
     pub upload_timestamp: u64,
 }
+/// Folders are not real objects stored on backblaze b2, but derived from the names of the stored
+/// files. This struct is returned by the file listing functions.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FolderInfo {
     pub file_name: String,
 }
+/// Contains information about a hide marker. Hide markers are used to mark a filename as not used
+/// without deleting the old versions.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct HideMarkerInfo {
@@ -48,6 +72,7 @@ pub struct HideMarkerInfo {
     pub file_name: String,
     pub upload_timestamp: u64,
 }
+/// Contains information about unfinished large files.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UnfinishedLargeFileInfo<InfoType=JsonValue> {
@@ -57,12 +82,15 @@ pub struct UnfinishedLargeFileInfo<InfoType=JsonValue> {
     pub file_info: InfoType,
     pub upload_timestamp: u64,
 }
+/// Contains the files and folders returned by the file name listing api.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileNameListing<InfoType=JsonValue> {
     pub files: Vec<FileInfo<InfoType>>,
     pub folders: Vec<FolderInfo>,
 }
+/// Contains the files, folders, hide markers and unfinished large files returned by the file
+/// version listing api.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileVersionListing<InfoType=JsonValue> {
@@ -73,6 +101,9 @@ pub struct FileVersionListing<InfoType=JsonValue> {
 }
 
 impl<'a> B2Authorization<'a> {
+    /// Performs a [b2_get_file_info][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_get_file_info.html
     pub fn get_file_info<IT>(&self, file_id: &str, client: &Client)
         -> Result<MoreFileInfo<IT>,B2Error>
         where for<'de> IT: Deserialize<'de>
@@ -92,23 +123,17 @@ impl<'a> B2Authorization<'a> {
             Ok(serde_json::from_reader(resp)?)
         }
     }
-    pub fn list_all_file_names<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
-                                  delimiter: Option<char>, client: &Client)
-        -> Result<FileNameListing<IT>, B2Error>
-        where for<'de> IT: Deserialize<'de>
-    {
-        let (mut fnl, mut name) = self.list_file_names(bucket_id, None, files_per_request, prefix,
-                                                  delimiter, client)?;
-        while name != None {
-            let (list, n) = self.list_file_names(bucket_id, name.as_ref().map(|s| s.as_str()),
-                files_per_request, prefix, delimiter, client)?;
-
-            fnl.files.extend(list.files);
-            fnl.folders.extend(list.folders);
-            name = n;
-        }
-        Ok(fnl)
-    }
+    /// Performs a [b2_list_file_names][1] api call. This function returns at most max_file_count
+    /// files.
+    ///
+    /// In order to list all the files on b2, pass None as start_file_name on the first call to
+    /// this function and to subsequent calls pass the Option returned by this function to the next
+    /// call of this function, until that Option is None. This is also done by the convenience
+    /// function list_all_file_names.
+    ///
+    /// Filenames hidden by a hide marker are not returned.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_list_file_names.html
     pub fn list_file_names<IT>(&self, bucket_id: &str, start_file_name: Option<&str>, max_file_count: u32,
                                prefix: Option<&str>, delimiter: Option<char>, client: &Client)
         -> Result<(FileNameListing<IT>, Option<String>), B2Error>
@@ -194,6 +219,36 @@ impl<'a> B2Authorization<'a> {
             Ok((FileNameListing { files: files, folders: folders }, lfns.next_file_name))
         }
     }
+    /// Uses the function list_file_names several times in order to download a list of all file
+    /// names on b2.
+    ///
+    /// Filenames hidden by a hide marker are not returned.
+    pub fn list_all_file_names<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
+                                  delimiter: Option<char>, client: &Client)
+        -> Result<FileNameListing<IT>, B2Error>
+        where for<'de> IT: Deserialize<'de>
+    {
+        let (mut fnl, mut name) = self.list_file_names(bucket_id, None, files_per_request, prefix,
+                                                  delimiter, client)?;
+        while name != None {
+            let (list, n) = self.list_file_names(bucket_id, name.as_ref().map(|s| s.as_str()),
+                files_per_request, prefix, delimiter, client)?;
+
+            fnl.files.extend(list.files);
+            fnl.folders.extend(list.folders);
+            name = n;
+        }
+        Ok(fnl)
+    }
+    /// Performs a [b2_list_file_versions][1] api call. This function returns at most max_file_count
+    /// files.
+    ///
+    /// In order to list all the files on b2, pass None as start_file_name on the first call to
+    /// this function and to subsequent calls pass the Option returned by this function to the next
+    /// call of this function, until that Option is None. This is also done by the convenience
+    /// function list_all_file_names.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_list_file_versions.html
     pub fn list_file_versions<IT>(&self, bucket_id: &str, start_file_name: Option<&str>,
                                   start_file_id: Option<&str>, max_file_count: u32, prefix: Option<&str>,
                                   delimiter: Option<char>, client: &Client)
@@ -325,6 +380,8 @@ impl<'a> B2Authorization<'a> {
             }, lfns.next_file_name, lfns.next_file_id))
         }
     }
+    /// Uses the function list_file_versions several times in order to download a list of all file
+    /// versions on b2.
     pub fn list_all_file_versions<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
                                   delimiter: Option<char>, client: &Client)
         -> Result<FileVersionListing<IT>, B2Error>
@@ -346,6 +403,11 @@ impl<'a> B2Authorization<'a> {
         }
         Ok(fvl)
     }
+    /// Performs a [b2_delete_file_version][1] api call.
+    ///
+    /// This function also works on unfinished large files and hide markers.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_file_version.html
     pub fn delete_file_version(&self, file_name: &str, file_id: &str, client: &Client)
         -> Result<(),B2Error>
     {
@@ -376,6 +438,11 @@ impl<'a> B2Authorization<'a> {
             Ok(())
         }
     }
+    /// Performs a [b2_hide_file][1] api call.
+    ///
+    /// This function creates a hide marker with the given name.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_hide_file.html
     pub fn hide_file(&self, file_name: &str, bucket_id: &str, client: &Client)
         -> Result<HideMarkerInfo,B2Error>
     {
@@ -406,12 +473,13 @@ impl<'a> B2Authorization<'a> {
     }
 }
 
-
+/// Specifies if something is a file or a hide marker.
 #[derive(Debug,Clone,Copy,Eq,PartialEq)]
 pub enum FileType {
     File, HideMarker
 }
 impl FileType {
+    /// Converts the strings "upload" and "hide" into the appropriate enum values.
     pub fn from_str(s: &str) -> Option<FileType> {
         match s {
             "upload" => Some(FileType::File),
@@ -419,19 +487,23 @@ impl FileType {
             _ => None
         }
     }
+    /// Converts the enum into the strings "upload" or "hide".
     pub fn as_str(&self) -> &'static str {
         match *self {
             FileType::File => "upload",
             FileType::HideMarker => "hide"
         }
     }
-    pub fn as_file_folder_type(&self) -> FileFolderType {
-        match *self {
+}
+impl Into<FileFolderType> for FileType {
+    fn into(self) -> FileFolderType {
+        match self {
             FileType::File => FileFolderType::File,
             FileType::HideMarker => FileFolderType::HideMarker
         }
     }
 }
+
 static FILE_TYPES: [&str; 2] = ["upload", "hide"];
 struct FileTypeVisitor;
 impl<'de> Visitor<'de> for FileTypeVisitor {
@@ -472,11 +544,13 @@ impl Serialize for FileType {
         serializer.serialize_str(self.as_str())
     }
 }
-#[derive(Debug,Clone,Copy)]
+/// Specifies if something is a file, a hide marker og a folder.
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum FileFolderType {
     File, HideMarker, Folder
 }
 impl FileFolderType {
+    /// Converts the strings "upload", "hide" and "folder" into the appropriate enum values.
     pub fn from_str(s: &str) -> Option<FileFolderType> {
         match s {
             "upload" => Some(FileFolderType::File),
@@ -485,12 +559,21 @@ impl FileFolderType {
             _ => None
         }
     }
+    /// Converts the enum into the strings "upload", "hide" or "folder".
     pub fn as_str(&self) -> &'static str {
         match *self {
             FileFolderType::File => "upload",
             FileFolderType::HideMarker => "hide",
             FileFolderType::Folder => "folder"
         }
+    }
+    /// Converts the FileFolderType into a FileType if possible, otherwise returns None.
+    pub fn into_file_type(self) -> Option<FileType> {
+        match self {
+            FileFolderType::File => Some(FileType::File),
+            FileFolderType::HideMarker => Some(FileType::HideMarker),
+            FileFolderType::Folder => None,
+       }
     }
 }
 static FILE_FOLDER_TYPES: [&str; 3] = ["upload", "hide", "folder"];
@@ -533,6 +616,4 @@ impl Serialize for FileFolderType {
         serializer.serialize_str(self.as_str())
     }
 }
-
-
 

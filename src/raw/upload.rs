@@ -16,8 +16,8 @@ use B2AuthHeader;
 use raw::authorize::B2Authorization;
 use raw::files::MoreFileInfo;
 
+/// Contains the information needed to authorize an upload to b2.
 /// The b2 website specifies that you may not upload to the same url in parallel.
-/// Therefore this type is not Sync
 #[derive(Deserialize,Serialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadAuthorization {
@@ -25,14 +25,17 @@ pub struct UploadAuthorization {
     pub upload_url: String,
     pub authorization_token: String
 }
-//impl !Sync for UploadAuthorization {}
 impl UploadAuthorization {
+    /// Returns a hyper header that authorizes an upload request.
     pub fn auth_header(&self) -> B2AuthHeader {
         B2AuthHeader(self.authorization_token.clone())
     }
 }
 
 impl<'a> B2Authorization<'a> {
+    /// Performs a [b2_get_upload_url][1] api call.
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_get_upload_url.html
     pub fn get_upload_url(&self, bucket_id: &str, client: &Client)
         -> Result<UploadAuthorization,B2Error>
     {
@@ -61,7 +64,6 @@ impl<'a> B2Authorization<'a> {
     }
 }
 impl UploadAuthorization {
-    /// Some arguments are String, since the hyper headers require Strings
     pub fn upload_file<InfoType, R: Read, C, S>(&self, file: &mut R, file_name: String, content_type: Option<Mime>,
                                  content_length: u64, content_sha1: String, connector: &C)
         -> Result<MoreFileInfo<InfoType>, B2Error>
@@ -73,8 +75,19 @@ impl UploadAuthorization {
         copy(file, &mut ufr)?;
         ufr.finish()
     }
-    pub fn create_upload_file_request<C,S>(&self, file_name: String, content_type: Option<Mime>,
-                                      content_length: u64, content_sha1: String, connector: &C)
+    /// Starts a request to upload a file to backblaze b2. This function returns an
+    /// UploadFileRequest, which implements Write. When writing to this object, the
+    /// files are sent to backblaze b2. This method of uploading can be used to
+    /// implement things such as rate limiting of the request.
+    ///
+    /// After the file has been written, you need to call the finish function on the
+    /// UploadFileRequest, in order to close the connection.
+    ///
+    /// The upload_file function can be used to do all of this.
+    pub fn create_upload_file_request<C,S>(&self, file_name: String,
+                                           content_type: Option<Mime>,
+                                           content_length: u64, content_sha1: String,
+                                           connector: &C)
         -> Result<UploadFileRequest, B2Error>
         where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>>
     {
@@ -97,6 +110,7 @@ impl UploadAuthorization {
 header! { (XBzFileName, "X-Bz-File-Name") => [String] }
 header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 
+/// Contains an ongoing upload to the backblaze b2 api.
 pub struct UploadFileRequest {
     request: Request<Streaming>
 }
@@ -115,6 +129,7 @@ impl ::std::io::Write for UploadFileRequest {
     }
 }
 impl UploadFileRequest {
+    /// Finishes the upload of the file and returns information about the uploaded file.
     pub fn finish<InfoType>(self) -> Result<MoreFileInfo<InfoType>, B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
