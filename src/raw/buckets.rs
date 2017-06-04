@@ -20,11 +20,11 @@ impl BucketType {
     /// Creates a BucketType from a string. The strings are the ones used by the backblaze api
     ///
     /// ```rust
-    /// use backblaze_b2::raw::buckets::BucketType;
+    ///use backblaze_b2::raw::buckets::BucketType;
     ///
-    /// assert_eq!(BucketType::from_str("allPublic"), Some(BucketType::Public));
-    /// assert_eq!(BucketType::from_str("allPrivate"), Some(BucketType::Private));
-    /// assert_eq!(BucketType::from_str("snapshot"), Some(BucketType::Snapshot));
+    ///assert_eq!(BucketType::from_str("allPublic"), Some(BucketType::Public));
+    ///assert_eq!(BucketType::from_str("allPrivate"), Some(BucketType::Private));
+    ///assert_eq!(BucketType::from_str("snapshot"), Some(BucketType::Snapshot));
     /// ```
     pub fn from_str(s: &str) -> Option<BucketType> {
         match s {

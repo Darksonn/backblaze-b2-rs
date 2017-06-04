@@ -15,15 +15,15 @@ use B2AuthHeader;
 /// This struct derives Deserialize, so a simple way to read this from a file would be:
 ///
 /// ```rust,no_run
-/// extern crate serde;
-/// extern crate serde_json;
-/// use std::fs::File;
+///extern crate serde;
+///extern crate serde_json;
+///use std::fs::File;
 ///
 ///# extern crate backblaze_b2;
 ///# use backblaze_b2::raw::authorize::B2Credentials;
 ///#
 ///# fn main() {
-///     serde_json::from_reader::<_,B2Credentials>(File::open("credentials.txt").unwrap()).unwrap();
+///serde_json::from_reader::<_,B2Credentials>(File::open("credentials.txt").unwrap()).unwrap();
 ///# }
 /// ```
 #[derive(Debug,Clone,Serialize,Deserialize)]

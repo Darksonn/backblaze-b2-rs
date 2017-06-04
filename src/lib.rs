@@ -5,21 +5,28 @@
 //!
 //! Such a client can be created with the api call below:
 //!
-//! ```rust,ignore
-//! extern crate hyper;
-//! extern crate hyper_native_tls;
-//! use hyper::Client;
-//! use hyper::net::HttpsConnector;
-//! use hyper_native_tls::NativeTlsClient;
+//! ```rust
+//!extern crate hyper;
+//!extern crate hyper_native_tls;
+//!use hyper::Client;
+//!use hyper::net::HttpsConnector;
+//!use hyper_native_tls::NativeTlsClient;
 //!
-//! let ssl = NativeTlsClient::new().unwrap();
-//! let connector = HttpsConnector::new(ssl);
-//! let client = Client::with_connector(connector);
+//!# fn main() {
+//!let ssl = NativeTlsClient::new().unwrap();
+//!let connector = HttpsConnector::new(ssl);
+//!let client = Client::with_connector(connector);
+//!# }
 //! ```
 //!
 //! Unfortunately because of the hyper api design, the upload functionality in this library
 //! requires the connector instead of the client, and since the client consumes the connector,
 //! you'll have to make two of them.
+//!
+//! See the raw module documentation for more information on using this crate.
+//!
+//! Currently this library is used through the raw module. This module simply supplies a function
+//! for each api call. Another module for easier usage is planned.
 
 extern crate base64;
 extern crate serde;
@@ -40,7 +47,7 @@ use hyper::client::Response;
 
 header! { (B2AuthHeader, "Authorization") => [String] }
 
-/// When the B2 api returns an error, it is a json-object that can be deserialized into this object
+/// The b2 api returns errors in a json-object, that can be deserialized into this struct.
 #[derive(Deserialize, Debug)]
 pub struct B2ErrorMessage {
     code: String,
