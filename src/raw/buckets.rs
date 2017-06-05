@@ -1,3 +1,8 @@
+//! This module defines various functions on the [B2Authorization][1] type for interacting with the
+//! buckets on backblaze.
+//!
+//!  [1]: ../authorize/struct.B2Authorization.html
+
 use std::fmt;
 
 use hyper::{self, Client};
@@ -11,13 +16,13 @@ use serde_json::{self, Value as JsonValue};
 use B2Error;
 use raw::authorize::B2Authorization;
 
-/// Specifies the type of a bucket on backblaze
+/// Specifies the type of a bucket on backblaze.
 #[derive(Debug,Clone,Copy,Eq,PartialEq)]
 pub enum BucketType {
     Public, Private, Snapshot
 }
 impl BucketType {
-    /// Creates a BucketType from a string. The strings are the ones used by the backblaze api
+    /// Creates a BucketType from a string. The strings are the ones used by the backblaze api.
     ///
     /// ```rust
     ///use backblaze_b2::raw::buckets::BucketType;
@@ -34,7 +39,7 @@ impl BucketType {
             _ => None
         }
     }
-    /// This function returns the string needed to specify the bucket type to the backblaze api
+    /// This function returns the string needed to specify the bucket type to the backblaze api.
     pub fn as_str(&self) -> &'static str {
         match *self {
             BucketType::Public => "allPublic",
@@ -94,7 +99,7 @@ pub struct LifecycleRule {
     file_name_prefix: String
 }
 
-/// This function contains various information about a backblaze bucket
+/// This function contains various information about a backblaze bucket.
 #[derive(Serialize,Deserialize,Debug,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Bucket<InfoType=JsonValue> {

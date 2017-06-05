@@ -1,3 +1,11 @@
+//! This module defines the struct [UploadAuthorization][1], which has various methods for
+//! uploading files to backblaze b2. This struct is usually obtained from a [B2Authorization][2]
+//! using the method [get_upload_url][3].
+//!
+//!  [1]: struct.UploadAuthorization.html
+//!  [2]: ../authorize/struct.B2Authorization.html
+//!  [3]: ../authorize/struct.B2Authorization.html#method.get_upload_url
+
 use std::io::{Read, copy};
 
 use hyper::{self, Client, Url};
@@ -16,8 +24,13 @@ use B2AuthHeader;
 use raw::authorize::B2Authorization;
 use raw::files::MoreFileInfo;
 
-/// Contains the information needed to authorize an upload to b2.
+/// Contains the information needed to authorize an upload to b2. This struct is usually obtained
+/// from a [B2Authorization][1] using the method [get_upload_url][2].
+///
 /// The b2 website specifies that you may not upload to the same url in parallel.
+///
+///  [1]: ../authorize/struct.B2Authorization.html
+///  [2]: ../authorize/struct.B2Authorization.html#method.get_upload_url
 #[derive(Deserialize,Serialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadAuthorization {
@@ -76,14 +89,19 @@ impl UploadAuthorization {
         ufr.finish()
     }
     /// Starts a request to upload a file to backblaze b2. This function returns an
-    /// UploadFileRequest, which implements Write. When writing to this object, the
-    /// files are sent to backblaze b2. This method of uploading can be used to
+    /// [UploadFileRequest][1], which implements [Write][2]. When writing to this object, the
+    /// data is sent to backblaze b2. This method of uploading can be used to
     /// implement things such as rate limiting of the request.
     ///
-    /// After the file has been written, you need to call the finish function on the
-    /// UploadFileRequest, in order to close the connection.
+    /// After the file has been sent, you need to call the [finish method][3] on the
+    /// [UploadFileRequest][1], in order to close the connection.
     ///
-    /// The upload_file function can be used to do all of this.
+    /// The [upload_file method][4] can be used to upload any Reader easily.
+    ///
+    ///  [1]: struct.UploadFileRequest.html
+    ///  [2]: https://doc.rust-lang.org/stable/std/io/trait.Write.html
+    ///  [3]: struct.UploadFileRequest.html#method.finish
+    ///  [4]: struct.UploadAuthorization.html#method.upload_file
     pub fn create_upload_file_request<C,S>(&self, file_name: String,
                                            content_type: Option<Mime>,
                                            content_length: u64, content_sha1: String,

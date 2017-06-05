@@ -11,8 +11,8 @@ use serde_json;
 use B2Error;
 use B2AuthHeader;
 
-/// Contains the backblaze id and key needed to authorize access to the backblaze b2 api
-/// This struct derives Deserialize, so a simple way to read this from a file would be:
+/// Contains the backblaze id and key needed to authorize access to the backblaze b2 api.
+/// This struct derives [Deserialize][1], so a simple way to read this from a file would be:
 ///
 /// ```rust,no_run
 ///extern crate serde;
@@ -26,14 +26,15 @@ use B2AuthHeader;
 ///serde_json::from_reader::<_,B2Credentials>(File::open("credentials.txt").unwrap()).unwrap();
 ///# }
 /// ```
+///
+///  [1]: ../../../serde/trait.Deserialize.html
 #[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct B2Credentials {
     pub id: String,
     pub key: String
 }
 impl B2Credentials {
-    /// This function concatenates the id and the key stored in this struct with a colon in between
-    pub fn id_key(&self) -> String {
+    fn id_key(&self) -> String {
         format!("{}:{}", self.id, self.key)
     }
     /// This function returns the value of the Authorization header needed to perform a

@@ -1,3 +1,9 @@
+//! This module defines various functions on the [B2Authorization][1] type for interacting with the
+//! files on backblaze. There are also various structs defined for storing information about files
+//! on backblaze.
+//!
+//!  [1]: ../authorize/struct.B2Authorization.html
+
 use std::fmt;
 
 use hyper::{self, Client};

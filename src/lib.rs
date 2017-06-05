@@ -23,10 +23,12 @@
 //! requires the connector instead of the client, and since the client consumes the connector,
 //! you'll have to make two of them.
 //!
-//! See the raw module documentation for more information on using this crate.
+//! See the [raw module documentation][1] for more information on using this crate.
 //!
 //! Currently this library is used through the raw module. This module simply supplies a function
 //! for each api call. Another module for easier usage is planned.
+//!
+//!  [1]: raw/index.html
 
 extern crate base64;
 extern crate serde;

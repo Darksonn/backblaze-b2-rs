@@ -1,3 +1,16 @@
+//! This module defines the struct [DownloadAuthorization][1], which has various methods for
+//! downlaoding files from backblaze b2. This struct is usually obtained from a
+//! [B2Authorization][2] using the methods [to_download_authorization][3] and
+//! [get_download_authorization][4].
+//!
+//! This module also defines two functions, which allow downloading from public backblaze buckets
+//! without authentication.
+//!
+//!  [1]: struct.DownloadAuthorization.html
+//!  [2]: ../authorize/struct.B2Authorization.html
+//!  [3]: ../authorize/struct.B2Authorization.html#method.to_download_authorization
+//!  [4]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
+
 use std::io::Read;
 
 use hyper::{self, Client};
@@ -20,7 +33,14 @@ header! { (XBzUploadTimestamp, "X-Bz-Upload-Timestamp") => [String] }
 header! { (XBzFileName, "X-Bz-File-Name") => [String] }
 header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 
-/// Contains the authorization and access data concerning a download authorization on backblaze
+/// Contains the authorization and access data concerning a download authorization on backblaze.
+///
+/// This struct is usually obtained from a [B2Authorization][1] using the methods
+/// [to_download_authorization][2] and [get_download_authorization][3].
+///
+///  [1]: ../authorize/struct.B2Authorization.html
+///  [2]: ../authorize/struct.B2Authorization.html#method.to_download_authorization
+///  [3]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
 #[derive(Serialize,Deserialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadAuthorization<'a> {
@@ -197,8 +217,9 @@ impl<'a> DownloadAuthorization<'a> {
 header! { (B2Range, "Range") => [String] }
 
 impl<'a> B2Authorization<'a> {
-    /// Use an account authorization to create a DownloadAuthorization. This is preferred unless the
-    /// restrictions on which files can be downloaded are needed.
+    /// Use the authorization token in this B2Authorization as a download authorization. The
+    /// DownloadAuthorization returned by this function can download any file on any bucket owned
+    /// by this user.
     pub fn to_download_authorization(&self) -> DownloadAuthorization {
         DownloadAuthorization {
             authorization_token: self.authorization_token.clone(),
@@ -207,7 +228,9 @@ impl<'a> B2Authorization<'a> {
             download_url: &self.download_url
         }
     }
-    /// Performs a [b2_get_download_authorization] api call.
+    /// Performs a [b2_get_download_authorization][1] api call. The DownloadAuthorization returned
+    /// by this method can only download files from the specified bucket and with the specified
+    /// prefix.
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_download_authorization.html
     pub fn get_download_authorization<'s>(&'s self, bucket_id: &str, file_name_prefix: Option<&str>,
