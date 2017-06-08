@@ -7,7 +7,7 @@ extern crate serde_json;
 extern crate rand;
 extern crate sha1;
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::fs::File;
 
 use hyper::Client;
@@ -61,12 +61,31 @@ fn list_all_files() {
         let mut m = sha1::Sha1::new();
         m.update(&file_data);
         let sha1 = m.digest().to_string();
-        let file = {
-            let file: MoreFileInfo = upload_auth.upload_file(&mut&file_data[..],
-                                                             format!("{}", i),
-                                                             None, 9,
-            sha1.clone(), &connector).unwrap();
-            file
+        let file: MoreFileInfo = {
+            if i % 3 == 0 {
+                upload_auth.upload_file(
+                    &mut&file_data[..],
+                    format!("{}", i),
+                    None, 9,
+                    sha1.clone(), &connector
+                ).unwrap()
+            } else if i % 3 == 1 {
+                let mut request = upload_auth.create_upload_file_request(
+                    format!("{}", i),
+                    None, 9, sha1.clone(),
+                    &connector
+                ).unwrap();
+                request.write_all(&file_data[..]).unwrap();
+                request.finish().unwrap()
+            } else {
+                let mut request = upload_auth.create_upload_file_request_sha1_at_end(
+                    format!("{}", i),
+                    None, 9,
+                    &connector
+                ).unwrap();
+                request.write_all(&file_data[..]).unwrap();
+                request.finish(&sha1).unwrap()
+            }
         };
         files.push(file);
     }

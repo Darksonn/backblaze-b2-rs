@@ -11,8 +11,6 @@
 //!  [3]: ../authorize/struct.B2Authorization.html#method.to_download_authorization
 //!  [4]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
 
-use std::io::Read;
-
 use hyper::{self, Client};
 use hyper::client::Body;
 use hyper::client::response::Response;
@@ -64,7 +62,7 @@ impl<'a> DownloadAuthorization<'a> {
 }
 
 fn handle_download_response<InfoType>(resp: Response)
-    -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+    -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
     where for<'de> InfoType: Deserialize<'de>
 {
     loop { // never actually loops, but allows break
@@ -130,7 +128,7 @@ impl<'a> DownloadAuthorization<'a> {
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
     pub fn download_file_by_id<InfoType>(&self, file_id: &str, client: &Client)
-        -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+        -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
         let url_string: String = format!("{}/b2api/v1/b2_download_file_by_id", self.download_url);
@@ -153,7 +151,7 @@ impl<'a> DownloadAuthorization<'a> {
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
     pub fn download_range_by_id<InfoType>(&self, file_id: &str, range_min: u64, range_max: u64, client: &Client)
-        -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+        -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
         let url_string: String = format!("{}/b2api/v1/b2_download_file_by_id", self.download_url);
@@ -176,7 +174,7 @@ impl<'a> DownloadAuthorization<'a> {
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
     pub fn download_file_by_name<InfoType>(&self, bucket_name: &str, file_name: &str, client: &Client)
-        -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+        -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
         let url_string: String = format!("{}/file/{}/{}", self.download_url, bucket_name, file_name);
@@ -197,7 +195,7 @@ impl<'a> DownloadAuthorization<'a> {
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
     pub fn download_range_by_name<InfoType>(&self, bucket_name: &str, file_name: &str,
                                             range_min: u64, range_max: u64, client: &Client)
-        -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+        -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
         let url_string: String = format!("{}/file/{}/{}", self.download_url, bucket_name, file_name);
@@ -291,7 +289,7 @@ impl<'a> B2Authorization<'a> {
 ///
 ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
 pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str, client: &Client)
-    -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+    -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
     where for<'de> InfoType: Deserialize<'de>
 {
     let url_string: String = format!("{}/file/{}/{}", download_url, bucket_name, file_name);
@@ -314,7 +312,7 @@ pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, fi
 ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
 pub fn download_range_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str,
                                         range_min: u64, range_max: u64, client: &Client)
-    -> Result<(impl Read, Option<FileInfo<InfoType>>), B2Error>
+    -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
     where for<'de> InfoType: Deserialize<'de>
 {
     let url_string: String = format!("{}/file/{}/{}", download_url, bucket_name, file_name);

@@ -439,8 +439,6 @@ impl<'a> B2Authorization<'a> {
         if resp.status != hyper::status::StatusCode::Ok {
             Err(B2Error::from_response(resp))
         } else {
-            use std::io::Read;
-            println!("{}", resp.chars().map(|r| r.unwrap()).collect::<String>());
             Ok(())
         }
     }

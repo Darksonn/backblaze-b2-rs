@@ -1,6 +1,3 @@
-#![feature(conservative_impl_trait)]
-#![feature(io)]
-
 //! The backblaze api requires https, so you need to provide a Client with a https connector.
 //!
 //! Such a client can be created with the api call below:
