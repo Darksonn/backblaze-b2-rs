@@ -101,7 +101,7 @@ impl UploadAuthorization {
     ///
     /// The [upload_file method][4] can be used to upload any Reader easily. The backblaze api
     /// supports not specifying the sha1 checksum. This is not recommended, but if you wish to do
-    /// this, simply pass the string "do_not_verify" as the sha1 checksum.
+    /// this, simply pass the string `do_not_verify` as the sha1 checksum.
     ///
     /// The function [create_upload_file_request_sha1_at_end][5] might be of interest. This
     /// function behaves identically to this function, except the sha1 is passed when calling
