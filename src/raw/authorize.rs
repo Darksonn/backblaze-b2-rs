@@ -51,7 +51,7 @@ impl B2Credentials {
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
     ///  [`is_credentials_issue`]: ../../enum.B2Error.html#method.is_credentials_issue
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     pub fn authorize<'a>(&'a self, client: &Client) -> Result<B2Authorization<'a>,B2Error> {
         let resp = try!(client.get("https://api.backblazeb2.com/b2api/v1/b2_authorize_account")
             .header(self.clone())
@@ -86,7 +86,10 @@ struct B2AuthResponse {
     recommended_part_size: usize,
     absolute_minimum_part_size: usize
 }
-/// This struct contains the needed authorization to perform any b2 api call.
+/// This struct contains the needed authorization to perform any b2 api call. It is typically
+/// created using a [`B2Credentials`].
+///
+///  [`B2Credentials`]: struct.B2Credentials.html
 #[derive(Debug)]
 pub struct B2Authorization<'a> {
     pub credentials: &'a B2Credentials,

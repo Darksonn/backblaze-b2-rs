@@ -133,7 +133,7 @@ impl<'a> B2Authorization<'a> {
     /// going to fail with the standard errors.
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_list_buckets.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     pub fn list_buckets<InfoType>(&self, client: &Client)
         -> Result<Vec<Bucket<InfoType>>,B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -159,7 +159,7 @@ impl<'a> B2Authorization<'a> {
     /// [`is_duplicate_bucket_name`] and [`is_invalid_bucket_name`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_maximum_bucket_limit`]: ../../enum.B2Error.html#method.is_maximum_bucket_limit
     ///  [`is_duplicate_bucket_name`]: ../../enum.B2Error.html#method.is_duplicate_bucket_name
     ///  [`is_invalid_bucket_name`]: ../../enum.B2Error.html#method.is_invalid_bucket_name
@@ -203,7 +203,7 @@ impl<'a> B2Authorization<'a> {
     /// [`is_duplicate_bucket_name`] and [`is_invalid_bucket_name`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_maximum_bucket_limit`]: ../../enum.B2Error.html#method.is_maximum_bucket_limit
     ///  [`is_duplicate_bucket_name`]: ../../enum.B2Error.html#method.is_duplicate_bucket_name
     ///  [`is_invalid_bucket_name`]: ../../enum.B2Error.html#method.is_invalid_bucket_name
@@ -224,7 +224,7 @@ impl<'a> B2Authorization<'a> {
     /// errors, this function can fail with [`is_bucket_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn delete_bucket_id<InfoType>(&self, bucket_id: &str, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>
@@ -254,7 +254,7 @@ impl<'a> B2Authorization<'a> {
     /// errors, this function can fail with [`is_bucket_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn delete_bucket<InfoType>(&self, bucket: &Bucket<InfoType>, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>

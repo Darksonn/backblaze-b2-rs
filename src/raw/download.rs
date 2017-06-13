@@ -131,7 +131,7 @@ impl<'a> DownloadAuthorization<'a> {
     /// errors, this function can fail with [`is_file_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     pub fn download_file_by_id<InfoType>(&self, file_id: &str, client: &Client)
         -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
@@ -160,7 +160,7 @@ impl<'a> DownloadAuthorization<'a> {
     /// errors, this function can fail with [`is_file_not_found`] and [`is_range_out_of_bounds`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     ///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     pub fn download_range_by_id<InfoType>(&self, file_id: &str, range_min: u64, range_max: u64, client: &Client)
@@ -190,7 +190,7 @@ impl<'a> DownloadAuthorization<'a> {
     /// errors, this function can fail with [`is_file_not_found`] and [`is_bucket_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     pub fn download_file_by_name<InfoType>(&self, bucket_name: &str, file_name: &str, client: &Client)
@@ -217,7 +217,7 @@ impl<'a> DownloadAuthorization<'a> {
     /// errors, this function can fail with [`is_file_not_found`], [`is_range_out_of_bounds`] and
     /// [`is_bucket_not_found`].
     ///
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     ///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
@@ -264,7 +264,7 @@ impl<'a> B2Authorization<'a> {
     /// errors, this function can fail with [`is_bucket_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_download_authorization.html
-    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn get_download_authorization<'s>(&'s self, bucket_id: &str, file_name_prefix: Option<&str>,
                                       expires_in_seconds: u32, client: &Client)
@@ -327,7 +327,7 @@ impl<'a> B2Authorization<'a> {
 /// errors, this function can fail with [`is_file_not_found`] and [`is_bucket_not_found`].
 ///
 ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
-///  [`B2Error`]: ../authorize/enum.B2Error.html
+///  [`B2Error`]: ../../enum.B2Error.html
 ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
 ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
 pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str, client: &Client)
@@ -356,7 +356,7 @@ pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, fi
 /// errors, this function can fail with [`is_file_not_found`], [`is_range_out_of_bounds`] and
 /// [`is_bucket_not_found`].
 ///
-///  [`B2Error`]: ../authorize/enum.B2Error.html
+///  [`B2Error`]: ../../enum.B2Error.html
 ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
 ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
 ///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
