@@ -1,7 +1,7 @@
-//! This module defines various functions on the [B2Authorization][1] type for interacting with the
+//! This module defines various functions on the [`B2Authorization`] type for interacting with the
 //! buckets on backblaze.
 //!
-//!  [1]: ../authorize/struct.B2Authorization.html
+//!  [`B2Authorization`]: ../authorize/struct.B2Authorization.html
 
 use std::fmt;
 
@@ -128,7 +128,12 @@ struct CreateBucketRequest<'a, InfoType> {
 impl<'a> B2Authorization<'a> {
     /// Performs a [b2_list_buckets][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. This function is only
+    /// going to fail with the standard errors.
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_list_buckets.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
     pub fn list_buckets<InfoType>(&self, client: &Client)
         -> Result<Vec<Bucket<InfoType>>,B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -148,7 +153,16 @@ impl<'a> B2Authorization<'a> {
     }
     /// Performs a [b2_create_bucket][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_maximum_bucket_limit`],
+    /// [`is_duplicate_bucket_name`] and [`is_invalid_bucket_name`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_maximum_bucket_limit`]: ../../enum.B2Error.html#method.is_maximum_bucket_limit
+    ///  [`is_duplicate_bucket_name`]: ../../enum.B2Error.html#method.is_duplicate_bucket_name
+    ///  [`is_invalid_bucket_name`]: ../../enum.B2Error.html#method.is_invalid_bucket_name
     pub fn create_bucket<InfoType>(&self,
                                    bucket_name: &str,
                                    bucket_type: BucketType,
@@ -183,7 +197,16 @@ impl<'a> B2Authorization<'a> {
     /// Performs a [b2_create_bucket][1] api call. This function initializes the bucket with no
     /// info.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_maximum_bucket_limit`],
+    /// [`is_duplicate_bucket_name`] and [`is_invalid_bucket_name`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_create_bucket.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_maximum_bucket_limit`]: ../../enum.B2Error.html#method.is_maximum_bucket_limit
+    ///  [`is_duplicate_bucket_name`]: ../../enum.B2Error.html#method.is_duplicate_bucket_name
+    ///  [`is_invalid_bucket_name`]: ../../enum.B2Error.html#method.is_invalid_bucket_name
     pub fn create_bucket_no_info(&self,
                                    bucket_name: &str,
                                    bucket_type: BucketType,
@@ -196,7 +219,13 @@ impl<'a> B2Authorization<'a> {
     }
     /// Performs a [b2_delete_bucket][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn delete_bucket_id<InfoType>(&self, bucket_id: &str, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>
         where for <'de> InfoType: Deserialize<'de>
@@ -220,7 +249,13 @@ impl<'a> B2Authorization<'a> {
     }
     /// Performs a [b2_delete_bucket][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_bucket.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn delete_bucket<InfoType>(&self, bucket: &Bucket<InfoType>, client: &Client)
         -> Result<Bucket<InfoType>, B2Error>
         where for <'de> InfoType: Deserialize<'de>

@@ -55,6 +55,22 @@ pub struct B2ErrorMessage {
 /// An error caused while using any of the B2 apis. Errors returned by the b2 api are stored
 /// exactly as received from backblaze and for ease of use several methods are provided on this
 /// type in order to check the kind of error.
+///
+/// The following methods are relevant for any backblaze api call:
+/// [`is_service_unavilable`], [`is_too_many_requests`], [`should_obtain_new_authentication`],
+/// [`should_back_off`].
+///
+/// The following methods are relevant for any backblaze api call beside authentication:
+/// [`is_expired_authentication`], [`is_authorization_issue`].
+///
+/// Since these errors are so common, they are not mentioned directly in the documentation for the
+/// api-call.
+///  [`is_service_unavilable`]: #method.is_service_unavilable
+///  [`is_too_many_requests`]: #method.is_too_many_requests
+///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
+///  [`should_back_off`]: #method.should_back_off
+///  [`is_expired_authentication`]: #method.is_expired_authentication
+///  [`is_authorization_issue`]: #method.is_authorization_issue
 #[derive(Debug)]
 pub enum B2Error {
     HyperError(hyper::error::Error),
@@ -63,10 +79,11 @@ pub enum B2Error {
     /// When the b2 website returns an error, it is stored in this variant.
     B2Error(hyper::status::StatusCode, B2ErrorMessage),
     /// This type is only returned if the b2 website is not following the api spec.
-    LibraryError(String)
+    ApiInconsistency(String)
 }
 
 /// Load errors
+#[allow(unused_variables)]
 impl B2Error {
     /// Returns true if the issue is related to the backblaze server being under too much load.
     pub fn is_service_unavilable(&self) -> bool {
@@ -89,8 +106,8 @@ impl B2Error {
     }
     /// Returns true if we should obtain new authentication. This returns true if either the
     /// connection failed or the authentication has expired. The reason for obtaining new
-    /// authentication is that this allows you to connect to some other backblaze pod, which might
-    /// be better connected.
+    /// authentication if the connection failed is that this allows you to connect to some other
+    /// backblaze pod, which might be better connected.
     pub fn should_obtain_new_authentication(&self) -> bool {
         if let Some(ref ioe) = self.get_io_kind() {
             match ioe {
@@ -101,7 +118,7 @@ impl B2Error {
                 &::std::io::ErrorKind::NotConnected => true,
                 _ => false
             }
-        } else { self.is_expired_authentication() }
+        } else { self.is_authorization_issue() }
     }
     /// Returns true if you should be using some sort of exponential back off for future requests.
     pub fn should_back_off(&self) -> bool {
@@ -114,6 +131,7 @@ impl B2Error {
     }
 }
 /// Authorization errors
+#[allow(unused_variables)]
 impl B2Error {
     /// Returns true if the error is related to invalid credentials during authentication.
     pub fn is_credentials_issue(&self) -> bool {
@@ -128,7 +146,10 @@ impl B2Error {
             }
         } else { false }
     }
-    /// Returns true if the error is caused by the authentication to have expired.
+    /// Returns true if the error is caused by the authentication being expired. Consider using the
+    /// method [`should_obtain_new_authentication`] instead.
+    ///
+    ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
     pub fn is_expired_authentication(&self) -> bool {
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
             if status == 401 && code == "expired_auth_token" {
@@ -138,7 +159,7 @@ impl B2Error {
         false
     }
     /// Returns true if the error is caused by any issue related to the authorization token,
-    /// including expired authentication tokens.
+    /// including expired authentication tokens and invalid authorization tokens.
     pub fn is_authorization_issue(&self) -> bool {
         if self.is_expired_authentication() { return true; }
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
@@ -161,8 +182,9 @@ impl B2Error {
     }
 }
 /// File errors
+#[allow(unused_variables)]
 impl B2Error {
-    /// Returns true if the error is related to referring to file names that are invalid.
+    /// Returns true if the error is caused by a file name which is not allowed on the b2 server.
     pub fn is_invalid_file_name(&self) -> bool {
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
             match message.as_str() {
@@ -210,6 +232,7 @@ impl B2Error {
     }
 }
 /// Bucket errors
+#[allow(unused_variables)]
 impl B2Error {
     /// Returns true if the error is caused by the account having reached the maximum bucket count.
     pub fn is_maximum_bucket_limit(&self) -> bool {
@@ -220,7 +243,8 @@ impl B2Error {
         }
         false
     }
-    /// Returns true if the error is caused by duplicate bucket names.
+    /// Returns true if the error is caused by an attempt to create a bucket with a name of a
+    /// pre-existing bucket.
     pub fn is_duplicate_bucket_name(&self) -> bool {
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
             if status == 400 && code == "duplicate_bucket_name" {
@@ -263,6 +287,7 @@ impl B2Error {
     }
 }
 /// Various errors
+#[allow(unused_variables)]
 impl B2Error {
     /// Returns true if a request used a ifRevisionIs header and the test failed.
     pub fn is_conflict(&self) -> bool {
@@ -344,7 +369,7 @@ impl fmt::Display for B2Error {
             B2Error::IOError(ref ioe) => ioe.fmt(f),
             B2Error::JsonError(ref jsonerr) => jsonerr.fmt(f),
             B2Error::B2Error(_, ref b2err) => write!(f, "{} ({}): {}", b2err.status, b2err.code, b2err.message),
-            B2Error::LibraryError(ref msg) => write!(f, "{}", msg)
+            B2Error::ApiInconsistency(ref msg) => write!(f, "{}", msg)
         }
     }
 }

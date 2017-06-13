@@ -45,7 +45,13 @@ impl B2Credentials {
     /// This function performs a [b2_authorize_account][1] api call to the backblaze api and returns an
     /// authorization token.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// non-authorization errors, this function can fail with [`is_credentials_issue`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
+    ///  [`is_credentials_issue`]: ../../enum.B2Error.html#method.is_credentials_issue
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
     pub fn authorize<'a>(&'a self, client: &Client) -> Result<B2Authorization<'a>,B2Error> {
         let resp = try!(client.get("https://api.backblazeb2.com/b2api/v1/b2_authorize_account")
             .header(self.clone())
@@ -80,7 +86,7 @@ struct B2AuthResponse {
     recommended_part_size: usize,
     absolute_minimum_part_size: usize
 }
-/// This struct contains the needed information to perform any b2 api call
+/// This struct contains the needed authorization to perform any b2 api call.
 #[derive(Debug)]
 pub struct B2Authorization<'a> {
     pub credentials: &'a B2Credentials,
@@ -101,7 +107,7 @@ impl<'a> B2Authorization<'a> {
             absolute_minimum_part_size: resp.absolute_minimum_part_size
         }
     }
-    /// Returns a hyper header that correctly authorizes an api call to backblaze
+    /// Returns a hyper header that correctly authorizes an api call to backblaze.
     pub fn auth_header(&self) -> B2AuthHeader {
         B2AuthHeader(self.authorization_token.clone())
     }

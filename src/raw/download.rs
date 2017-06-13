@@ -33,12 +33,12 @@ header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 
 /// Contains the authorization and access data concerning a download authorization on backblaze.
 ///
-/// This struct is usually obtained from a [B2Authorization][1] using the methods
-/// [to_download_authorization][2] and [get_download_authorization][3].
+/// This struct is usually obtained from a [`B2Authorization`] using the methods
+/// [`to_download_authorization`] and [`get_download_authorization`].
 ///
-///  [1]: ../authorize/struct.B2Authorization.html
-///  [2]: ../authorize/struct.B2Authorization.html#method.to_download_authorization
-///  [3]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
+///  [`B2Authorization`]: ../authorize/struct.B2Authorization.html
+///  [`to_download_authorization`]: ../authorize/struct.B2Authorization.html#method.to_download_authorization
+///  [`get_download_authorization`]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
 #[derive(Serialize,Deserialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadAuthorization<'a> {
@@ -115,7 +115,7 @@ fn handle_download_response<InfoType>(resp: Response)
             file_info: serde_json::from_value(JsonValue::Object(info))?,
             upload_timestamp: match upload_timestamp.parse() {
                 Ok(v) => v,
-                Err(_) => return Err(B2Error::LibraryError("upload timestamp not integer".to_owned()))
+                Err(_) => return Err(B2Error::ApiInconsistency("upload timestamp not integer".to_owned()))
             },
         })));
     }
@@ -126,7 +126,13 @@ impl<'a> DownloadAuthorization<'a> {
 
     /// Performs a [b2_download_file_by_id][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     pub fn download_file_by_id<InfoType>(&self, file_id: &str, client: &Client)
         -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -149,7 +155,14 @@ impl<'a> DownloadAuthorization<'a> {
     /// Performs a [b2_download_file_by_id][1] api call. This function specifies the range of the
     /// file to download, and the range_max parameter is inclusive.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`] and [`is_range_out_of_bounds`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_id.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+    ///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     pub fn download_range_by_id<InfoType>(&self, file_id: &str, range_min: u64, range_max: u64, client: &Client)
         -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -172,7 +185,14 @@ impl<'a> DownloadAuthorization<'a> {
     }
     /// Performs a [b2_download_file_by_name][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`] and [`is_bucket_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     pub fn download_file_by_name<InfoType>(&self, bucket_name: &str, file_name: &str, client: &Client)
         -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
         where for<'de> InfoType: Deserialize<'de>
@@ -192,6 +212,15 @@ impl<'a> DownloadAuthorization<'a> {
     /// Performs a [b2_download_file_by_name][1] api call. This function specifies the range of the
     /// file to download, and the range_max parameter is inclusive.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`], [`is_range_out_of_bounds`] and
+    /// [`is_bucket_not_found`].
+    ///
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
+    ///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
     ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
     pub fn download_range_by_name<InfoType>(&self, bucket_name: &str, file_name: &str,
                                             range_min: u64, range_max: u64, client: &Client)
@@ -230,7 +259,13 @@ impl<'a> B2Authorization<'a> {
     /// by this method can only download files from the specified bucket and with the specified
     /// prefix.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_download_authorization.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
     pub fn get_download_authorization<'s>(&'s self, bucket_id: &str, file_name_prefix: Option<&str>,
                                       expires_in_seconds: u32, client: &Client)
         -> Result<DownloadAuthorization<'s>, B2Error>
@@ -287,7 +322,14 @@ impl<'a> B2Authorization<'a> {
 /// This function does not include any authorization in the request, so it can only be used to
 /// access public buckets.
 ///
+/// # Errors
+/// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+/// errors, this function can fail with [`is_file_not_found`] and [`is_bucket_not_found`].
+///
 ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
+///  [`B2Error`]: ../authorize/enum.B2Error.html
+///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
 pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str, client: &Client)
     -> Result<(Response, Option<FileInfo<InfoType>>), B2Error>
     where for<'de> InfoType: Deserialize<'de>
@@ -309,6 +351,15 @@ pub fn download_file_by_name<InfoType>(download_url: &str, bucket_name: &str, fi
 /// This function does not include any authorization in the request, so it can only be used to
 /// access public buckets.
 ///
+/// # Errors
+/// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+/// errors, this function can fail with [`is_file_not_found`], [`is_range_out_of_bounds`] and
+/// [`is_bucket_not_found`].
+///
+///  [`B2Error`]: ../authorize/enum.B2Error.html
+///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
+///  [`is_range_out_of_bounds`]: ../../enum.B2Error.html#method.is_range_out_of_bounds
 ///  [1]: https://www.backblaze.com/b2/docs/b2_download_file_by_name.html
 pub fn download_range_by_name<InfoType>(download_url: &str, bucket_name: &str, file_name: &str,
                                         range_min: u64, range_max: u64, client: &Client)
