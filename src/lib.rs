@@ -57,20 +57,24 @@ pub struct B2ErrorMessage {
 /// type in order to check the kind of error.
 ///
 /// The following methods are relevant for any backblaze api call:
-/// [`is_service_unavilable`], [`is_too_many_requests`], [`should_obtain_new_authentication`],
-/// [`should_back_off`].
+/// [`is_service_unavilable`], [`is_too_many_requests`], [`should_back_off`].
 ///
 /// The following methods are relevant for any backblaze api call beside authentication:
-/// [`is_expired_authentication`], [`is_authorization_issue`].
+/// [`is_expired_authentication`], [`is_authorization_issue`],
+/// [`should_obtain_new_authentication`].
 ///
 /// Since these errors are so common, they are not mentioned directly in the documentation for the
-/// api-call.
+/// api-call. Also take care with snapshot buckets, they might cause the error
+/// [`is_snapshot_interaction_failure`], but the B2 documentation is inconsistent regarding when
+/// this error can be returned.
+///
 ///  [`is_service_unavilable`]: #method.is_service_unavilable
 ///  [`is_too_many_requests`]: #method.is_too_many_requests
 ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
 ///  [`should_back_off`]: #method.should_back_off
 ///  [`is_expired_authentication`]: #method.is_expired_authentication
 ///  [`is_authorization_issue`]: #method.is_authorization_issue
+///  [`is_snapshot_interaction_failure`]: #method.is_snapshot_interaction_failure
 #[derive(Debug)]
 pub enum B2Error {
     HyperError(hyper::error::Error),
@@ -85,10 +89,14 @@ pub enum B2Error {
 /// Load errors
 #[allow(unused_variables)]
 impl B2Error {
-    /// Returns true if the issue is related to the backblaze server being under too much load.
+    /// Returns true if the B2 server returned any status code in the 5xx range. According to the
+    /// B2 specification, one should obtain new authentication in this case, so the method
+    /// [`should_obtain_new_authentication`] always returns true if this method returns true.
+    ///
+    ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
     pub fn is_service_unavilable(&self) -> bool {
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
-            status == 503
+            status >= 500 && status <= 599
         } else { false }
     }
     /// Returns true if we are making too many requests.
@@ -104,10 +112,11 @@ impl B2Error {
             _ => None
         }.map(|io| io.kind())
     }
-    /// Returns true if we should obtain new authentication. This returns true if either the
-    /// connection failed or the authentication has expired. The reason for obtaining new
-    /// authentication if the connection failed is that this allows you to connect to some other
-    /// backblaze pod, which might be better connected.
+    /// Returns true if any of the situtations described on the [B2 documentation][1] has occurred.
+    /// When this function returns true, you should obtain a new [`B2Authorization`].
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/uploading.html
+    ///  [`B2Authorization`]: raw/authorize/struct.B2Authorization.html
     pub fn should_obtain_new_authentication(&self) -> bool {
         if let Some(ref ioe) = self.get_io_kind() {
             match ioe {
@@ -116,9 +125,10 @@ impl B2Error {
                 &::std::io::ErrorKind::ConnectionReset => true,
                 &::std::io::ErrorKind::ConnectionAborted => true,
                 &::std::io::ErrorKind::NotConnected => true,
+                &::std::io::ErrorKind::TimedOut => true,
                 _ => false
             }
-        } else { self.is_authorization_issue() }
+        } else { self.is_authorization_issue() || self.is_service_unavilable() }
     }
     /// Returns true if you should be using some sort of exponential back off for future requests.
     pub fn should_back_off(&self) -> bool {
@@ -227,7 +237,13 @@ impl B2Error {
     /// out of bounds.
     pub fn is_range_out_of_bounds(&self) -> bool {
         if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
-            if code == "range_not_satisfiable" { true } else { false }
+            code == "range_not_satisfiable"
+        } else { false }
+    }
+    /// Returns true if the error is caused by the sha1 of the uploaded file not matching.
+    pub fn is_invalid_sha1(&self) -> bool {
+        if let &B2Error::B2Error(_, B2ErrorMessage { ref code, ref message, status }) = self {
+            message == "Sha1 did not match data received"
         } else { false }
     }
 }

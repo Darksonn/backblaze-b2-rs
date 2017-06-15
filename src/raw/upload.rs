@@ -44,10 +44,21 @@ impl UploadAuthorization {
     }
 }
 
+/// Methods related to the [upload module][1].
+///
+///  [1]: ../upload/index.html
 impl<'a> B2Authorization<'a> {
-    /// Performs a [b2_get_upload_url][1] api call.
+    /// Performs a [b2_get_upload_url][1] api call and returns the upload url wrapped in an
+    /// [`UploadAuthorization`].
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_upload_url.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`UploadAuthorization`]: struct.UploadAuthorization.html
     pub fn get_upload_url(&self, bucket_id: &str, client: &Client)
         -> Result<UploadAuthorization,B2Error>
     {
@@ -109,12 +120,19 @@ impl UploadAuthorization {
     ///
     /// Read the [backblaze api documentation][6] for more information.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_invalid_file_name`] and [`is_cap_exceeded`].
+    ///
     ///  [1]: struct.UploadFileRequest.html
     ///  [2]: https://doc.rust-lang.org/stable/std/io/trait.Write.html
     ///  [3]: struct.UploadFileRequest.html#method.finish
     ///  [4]: struct.UploadAuthorization.html#method.upload_file
     ///  [5]: struct.UploadFileRequest.html#method.create_upload_file_request_sha1_at_end
     ///  [6]: https://www.backblaze.com/b2/docs/uploading.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
+    ///  [`is_cap_exceeded`]: ../../enum.B2Error.html#method.is_cap_exceeded
     pub fn create_upload_file_request<C,S>(&self, file_name: String,
                                            content_type: Option<Mime>,
                                            content_length: u64, content_sha1: String,
@@ -147,10 +165,17 @@ impl UploadAuthorization {
     ///
     /// Read the [backblaze api documentation][4] for more information.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_invalid_file_name`] and [`is_cap_exceeded`].
+    ///
     ///  [1]: struct.UploadFileRequestSha1End.html
     ///  [2]: https://doc.rust-lang.org/stable/std/io/trait.Write.html
     ///  [3]: struct.UploadFileRequestSha1End.html#method.finish
     ///  [4]: https://www.backblaze.com/b2/docs/uploading.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
+    ///  [`is_cap_exceeded`]: ../../enum.B2Error.html#method.is_cap_exceeded
     pub fn create_upload_file_request_sha1_at_end<C,S>(&self, file_name: String,
                                                        content_type: Option<Mime>,
                                                        content_length: u64,
@@ -177,7 +202,10 @@ impl UploadAuthorization {
 header! { (XBzFileName, "X-Bz-File-Name") => [String] }
 header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 
-/// Contains an ongoing upload to the backblaze b2 api.
+/// Contains an ongoing upload to the backblaze b2 api. This struct is created by the
+/// [`create_upload_file_request`] method.
+///
+///  [`create_upload_file_request`]: struct.UploadAuthorization.html#method.create_upload_file_request
 pub struct UploadFileRequest {
     request: Request<Streaming>
 }
@@ -197,6 +225,14 @@ impl Write for UploadFileRequest {
 }
 impl UploadFileRequest {
     /// Finishes the upload of the file and returns information about the uploaded file.
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_cap_exceeded`], [`is_invalid_sha1`].
+    ///
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_cap_exceeded`]: ../../enum.B2Error.html#method.is_cap_exceeded
+    ///  [`is_invalid_sha1`]: ../../enum.B2Error.html#method.is_invalid_sha1
     pub fn finish<InfoType>(self) -> Result<MoreFileInfo<InfoType>, B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {
@@ -208,7 +244,10 @@ impl UploadFileRequest {
         }
     }
 }
-/// Contains an ongoing upload to the backblaze b2 api.
+/// Contains an ongoing upload to the backblaze b2 api. This struct is created by the
+/// [create_upload_file_request_sha1_at_end][1] method.
+///
+///  [1]: struct.UploadAuthorization.html#method.create_upload_file_request_sha1_at_end
 pub struct UploadFileRequestSha1End {
     request: Request<Streaming>
 }
@@ -231,6 +270,14 @@ impl UploadFileRequestSha1End {
     /// argument must be the ascii encoding of the sha1 of the file.
     ///
     /// The sha1 should be 40 bytes long, but this is not checked at runtime.
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_cap_exceeded`], [`is_invalid_sha1`].
+    ///
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_cap_exceeded`]: ../../enum.B2Error.html#method.is_cap_exceeded
+    ///  [`is_invalid_sha1`]: ../../enum.B2Error.html#method.is_invalid_sha1
     pub fn finish<InfoType>(mut self, sha1: &str) -> Result<MoreFileInfo<InfoType>, B2Error>
         where for<'de> InfoType: Deserialize<'de>
     {

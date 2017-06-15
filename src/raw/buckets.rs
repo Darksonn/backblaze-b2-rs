@@ -125,6 +125,9 @@ struct CreateBucketRequest<'a, InfoType> {
     bucket_info: InfoType,
     lifecycle_rules: Vec<LifecycleRule>
 }
+/// Methods related to the [buckets module][1].
+///
+///  [1]: ../buckets/index.html
 impl<'a> B2Authorization<'a> {
     /// Performs a [b2_list_buckets][1] api call.
     ///

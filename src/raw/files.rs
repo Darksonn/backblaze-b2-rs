@@ -106,10 +106,19 @@ pub struct FileVersionListing<InfoType=JsonValue> {
     pub unfinished_large_files: Vec<UnfinishedLargeFileInfo<InfoType>>,
 }
 
+/// Methods related to the [files module][1].
+///
+///  [1]: ../files/index.html
 impl<'a> B2Authorization<'a> {
     /// Performs a [b2_get_file_info][1] api call.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_file_info.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     pub fn get_file_info<IT>(&self, file_id: &str, client: &Client)
         -> Result<MoreFileInfo<IT>,B2Error>
         where for<'de> IT: Deserialize<'de>
@@ -139,7 +148,17 @@ impl<'a> B2Authorization<'a> {
     ///
     /// Filenames hidden by a hide marker are not returned.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`], [`is_invalid_file_name`],
+    /// [`is_prefix_issue`], [`is_invalid_delimiter`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_list_file_names.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`is_prefix_issue`]: ../../enum.B2Error.html#method.is_prefix_issue
+    ///  [`is_invalid_delimiter`]: ../../enum.B2Error.html#method.is_invalid_delimiter
     pub fn list_file_names<IT>(&self, bucket_id: &str, start_file_name: Option<&str>, max_file_count: u32,
                                prefix: Option<&str>, delimiter: Option<char>, client: &Client)
         -> Result<(FileNameListing<IT>, Option<String>), B2Error>
@@ -225,10 +244,22 @@ impl<'a> B2Authorization<'a> {
             Ok((FileNameListing { files: files, folders: folders }, lfns.next_file_name))
         }
     }
-    /// Uses the function list_file_names several times in order to download a list of all file
+    /// Uses the function [`list_file_names`] several times in order to download a list of all file
     /// names on b2.
     ///
     /// Filenames hidden by a hide marker are not returned.
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`], [`is_prefix_issue`],
+    /// [`is_invalid_delimiter`].
+    ///
+    ///  [`list_file_names`]: #method.list_file_names
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`is_prefix_issue`]: ../../enum.B2Error.html#method.is_prefix_issue
+    ///  [`is_invalid_delimiter`]: ../../enum.B2Error.html#method.is_invalid_delimiter
     pub fn list_all_file_names<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
                                   delimiter: Option<char>, client: &Client)
         -> Result<FileNameListing<IT>, B2Error>
@@ -254,7 +285,17 @@ impl<'a> B2Authorization<'a> {
     /// call of this function, until that Option is None. This is also done by the convenience
     /// function list_all_file_names.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`], [`is_invalid_file_name`],
+    /// [`is_prefix_issue`] and [`is_invalid_delimiter`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_list_file_versions.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`is_prefix_issue`]: ../../enum.B2Error.html#method.is_prefix_issue
+    ///  [`is_invalid_delimiter`]: ../../enum.B2Error.html#method.is_invalid_delimiter
     pub fn list_file_versions<IT>(&self, bucket_id: &str, start_file_name: Option<&str>,
                                   start_file_id: Option<&str>, max_file_count: u32, prefix: Option<&str>,
                                   delimiter: Option<char>, client: &Client)
@@ -386,8 +427,19 @@ impl<'a> B2Authorization<'a> {
             }, lfns.next_file_name, lfns.next_file_id))
         }
     }
-    /// Uses the function list_file_versions several times in order to download a list of all file
+    /// Uses the function [`list_file_versions`] several times in order to download a list of all file
     /// versions on b2.
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_bucket_not_found`], [`is_prefix_issue`] and
+    /// [`is_invalid_delimiter`].
+    ///
+    ///  [`list_file_versions`]: #method.list_file_versions
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`is_prefix_issue`]: ../../enum.B2Error.html#method.is_prefix_issue
+    ///  [`is_invalid_delimiter`]: ../../enum.B2Error.html#method.is_invalid_delimiter
     pub fn list_all_file_versions<IT>(&self, bucket_id: &str, files_per_request: u32, prefix: Option<&str>,
                                   delimiter: Option<char>, client: &Client)
         -> Result<FileVersionListing<IT>, B2Error>
@@ -413,7 +465,13 @@ impl<'a> B2Authorization<'a> {
     ///
     /// This function also works on unfinished large files and hide markers.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_delete_file_version.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
     pub fn delete_file_version(&self, file_name: &str, file_id: &str, client: &Client)
         -> Result<(),B2Error>
     {
@@ -446,7 +504,17 @@ impl<'a> B2Authorization<'a> {
     ///
     /// This function creates a hide marker with the given name.
     ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`], [`is_bucket_not_found`],
+    /// [`is_file_already_hidden`] and [`is_invalid_file_name`].
+    ///
     ///  [1]: https://www.backblaze.com/b2/docs/b2_hide_file.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+    ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
+    ///  [`is_file_already_hidden`]: ../../enum.B2Error.html#method.is_file_already_hidden
+    ///  [`is_invalid_file_name`]: ../../enum.B2Error.html#method.is_invalid_file_name
     pub fn hide_file(&self, file_name: &str, bucket_id: &str, client: &Client)
         -> Result<HideMarkerInfo,B2Error>
     {
