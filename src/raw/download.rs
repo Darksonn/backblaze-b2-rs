@@ -1,5 +1,7 @@
-//! This module defines the struct [DownloadAuthorization][1], which has various methods for
-//! downlaoding files from backblaze b2. This struct is usually obtained from a
+//! This module defines various methods and structs for interacting with downloads on backblaze.
+//!
+//! The primary struct in this module is [DownloadAuthorization][1], which has various methods for
+//! downloading files from backblaze b2. This struct is usually obtained from a
 //! [B2Authorization][2] using the methods [to_download_authorization][3] and
 //! [get_download_authorization][4].
 //!

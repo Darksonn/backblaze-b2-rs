@@ -1,4 +1,6 @@
-//! This module defines the struct [UploadAuthorization][1], which has various methods for
+//! This module defines various methods and structs for interacting with uplaods on backblaze.
+//!
+//! The primary struct in this module is [UploadAuthorization][1], which has various methods for
 //! uploading files to backblaze b2. This struct is usually obtained from a [B2Authorization][2]
 //! using the method [get_upload_url][3].
 //!

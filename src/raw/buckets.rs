@@ -1,5 +1,6 @@
-//! This module defines various functions on the [`B2Authorization`] type for interacting with the
-//! buckets on backblaze.
+//! This module defines various methods for interacting with buckets on backblaze.
+//!
+//! The methods are found on the [`B2Authorization`] struct.
 //!
 //!  [`B2Authorization`]: ../authorize/struct.B2Authorization.html
 

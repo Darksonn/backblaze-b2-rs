@@ -1,6 +1,7 @@
-//! This module defines various functions on the [B2Authorization][1] type for interacting with the
-//! files on backblaze. There are also various structs defined for storing information about files
-//! on backblaze.
+//! This module defines various methods for interacting with the files on backblaze. There are also
+//! various structs for storing information about files on backblaze.
+//!
+//! The methods are found on the [B2Authorization][1] struct.
 //!
 //!  [1]: ../authorize/struct.B2Authorization.html
 
