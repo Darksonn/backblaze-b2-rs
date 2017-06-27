@@ -44,7 +44,10 @@ use hyper::client::Response;
 
 header! { (B2AuthHeader, "Authorization") => [String] }
 
-/// The b2 api returns errors in a json-object, that can be deserialized into this struct.
+/// The b2 api returns errors in a json-object, that can be deserialized into this struct. This
+/// struct is usually contained in a [`B2Error`].
+///
+///  [`B2Error`]: enum.B2Error.html
 #[derive(Deserialize, Debug)]
 pub struct B2ErrorMessage {
     code: String,
