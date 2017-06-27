@@ -274,7 +274,8 @@ impl UploadFileRequestSha1End {
     /// Finishes the upload of the file and returns information about the uploaded file. The `sha1`
     /// argument must be the ascii encoding of the sha1 of the file.
     ///
-    /// The sha1 should be 40 bytes long, but this is not checked at runtime.
+    /// The sha1 should be 40 bytes long, but this is not checked at runtime. If it is not 40 bytes
+    /// the b2 server will complain with some kind of bad request error.
     ///
     /// # Errors
     /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
