@@ -162,6 +162,9 @@ impl UploadAuthorization {
     /// the data is sent to backblaze b2. This method of uploading can be used to implement things
     /// such as rate limiting of the request.
     ///
+    /// The value of the `content_length` parameter must be exactly the amount of bytes you are
+    /// going to write, not including the 40 byte sha1 appended by the [finish method][3].
+    ///
     /// After the file has been sent, you need to call the [finish method][3] on the
     /// [UploadFileRequestSha1End][1], in order to close the connection.
     ///
