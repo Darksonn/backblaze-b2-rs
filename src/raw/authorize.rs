@@ -1,3 +1,12 @@
+//! This module defines various methods and structs used for authenticating on the B2 server.
+//!
+//! Authentication is usually performed by calling the [`authorize`] method on the
+//! [`B2Credentials`] struct, which returns a [`B2Authorization`].
+//!
+//!  [`authorize`]: struct.B2Credentials.html#method.authorize
+//!  [`B2Credentials`]: struct.B2Credentials.html
+//!  [`B2Authorization`]: struct.B2Authorization.html
+
 use std::fmt;
 
 use base64::{encode as b64encode};
@@ -87,8 +96,9 @@ struct B2AuthResponse {
     absolute_minimum_part_size: usize
 }
 /// This struct contains the needed authorization to perform any b2 api call. It is typically
-/// created using a [`B2Credentials`].
+/// created using the [`authorize`] method on [`B2Credentials`].
 ///
+///  [`authorize`]: struct.B2Credentials.html#method.authorize
 ///  [`B2Credentials`]: struct.B2Credentials.html
 #[derive(Debug)]
 pub struct B2Authorization<'a> {
