@@ -1,5 +1,6 @@
 # backblaze-b2-rs
-Rust library for using the backblaze b2 api.
+Rust library for using the backblaze b2 api. See [here][1] for more information.
+See [here][2] for documentation.
 
 The backblaze api requires https, so you need to provide a Client with a https
 connector.  Such a client can be created with the api call below:
@@ -17,3 +18,6 @@ connector.  Such a client can be created with the api call below:
 Unfortunately because of the hyper api design, the upload functionality in this
 library requires the connector instead of the client, and since the client
 consumes the connector, you'll have to make two of them.
+
+  [1]: https://ryhl.io/backblaze.html
+  [2]: https://docs.rs/backblaze-b2
