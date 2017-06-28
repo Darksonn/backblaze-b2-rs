@@ -252,7 +252,7 @@ impl B2Authorization {
     /// Use the authorization token in this B2Authorization as a download authorization. The
     /// DownloadAuthorization returned by this function can download any file on any bucket owned
     /// by this user.
-    pub fn to_download_authorization(&self) -> DownloadAuthorization {
+    pub fn to_download_authorization<'a>(&'a self) -> DownloadAuthorization<'a> {
         DownloadAuthorization {
             authorization_token: self.authorization_token.clone(),
             bucket_id: None,
