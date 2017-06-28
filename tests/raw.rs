@@ -121,7 +121,7 @@ fn main_test() {
         assert_eq!(bucket.bucket_name, new_bucket_name);
         assert_eq!(bucket.bucket_type, BucketType::Private);
         assert_eq!(bucket.bucket_info, bucket_info);
-        assert_eq!(bucket.account_id, auth.credentials.id);
+        assert_eq!(bucket.account_id, auth.account_id);
         auth.delete_bucket_id::<Value>(&bucket.bucket_id, &client).unwrap();
     }
     let bucket = auth.create_bucket_no_info(&new_bucket_name, BucketType::Private,
@@ -129,7 +129,7 @@ fn main_test() {
     assert_eq!(bucket.bucket_name, new_bucket_name);
     assert_eq!(bucket.bucket_type, BucketType::Private);
     assert_eq!(bucket.bucket_info, json!({}));
-    assert_eq!(bucket.account_id, auth.credentials.id);
+    assert_eq!(bucket.account_id, auth.account_id);
 
     let buckets_after: Vec<Bucket> = auth.list_buckets(&client).unwrap();
     //assert_eq!(buckets_after.len() - buckets_before.len(), 1);
@@ -153,7 +153,7 @@ fn main_test() {
         let file: MoreFileInfo = upload_auth.upload_file(&mut&file_data[..], "test_file.png".to_owned(), None, 9,
         sha1.clone(), &make_connector()).unwrap();
         assert_eq!(&file.file_name, "test_file.png");
-        assert_eq!(file.account_id, auth.credentials.id);
+        assert_eq!(file.account_id, auth.account_id);
         assert_eq!(file.content_sha1, sha1);
         assert_eq!(file.bucket_id, bucket.bucket_id);
         assert_eq!(file.content_length, 9);
@@ -165,7 +165,7 @@ fn main_test() {
     {
         let file2: MoreFileInfo = auth.get_file_info(&file.file_id, &client).unwrap();
         assert_eq!(&file2.file_name, "test_file.png");
-        assert_eq!(file2.account_id, auth.credentials.id);
+        assert_eq!(file2.account_id, auth.account_id);
         assert_eq!(file2.content_sha1, sha1);
         assert_eq!(file2.bucket_id, bucket.bucket_id);
         assert_eq!(file2.content_length, 9);
