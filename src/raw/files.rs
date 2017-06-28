@@ -110,7 +110,7 @@ pub struct FileVersionListing<InfoType=JsonValue> {
 /// Methods related to the [files module][1].
 ///
 ///  [1]: ../files/index.html
-impl<'a> B2Authorization<'a> {
+impl B2Authorization {
     /// Performs a [b2_get_file_info][1] api call.
     ///
     /// # Errors

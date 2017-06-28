@@ -129,7 +129,7 @@ struct CreateBucketRequest<'a, InfoType> {
 /// Methods related to the [buckets module][1].
 ///
 ///  [1]: ../buckets/index.html
-impl<'a> B2Authorization<'a> {
+impl B2Authorization {
     /// Performs a [b2_list_buckets][1] api call.
     ///
     /// # Errors
@@ -143,7 +143,7 @@ impl<'a> B2Authorization<'a> {
         where for<'de> InfoType: Deserialize<'de>
     {
         let url_string: String = format!("{}/b2api/v1/b2_list_buckets?accountId={}",
-                                               self.api_url, self.credentials.id);
+                                               self.api_url, self.account_id);
         let url: &str = &url_string;
         let resp = try!(client.get(url)
             .header(self.auth_header())
@@ -180,7 +180,7 @@ impl<'a> B2Authorization<'a> {
         let url: &str = &url_string;
 
         let body = try!(serde_json::to_string(&CreateBucketRequest {
-            account_id: &self.credentials.id,
+            account_id: &self.account_id,
             bucket_name: bucket_name,
             bucket_type: bucket_type,
             bucket_info: bucket_info,
@@ -238,7 +238,7 @@ impl<'a> B2Authorization<'a> {
         let url: &str = &url_string;
 
         let body: String =
-            format!("{{\"accountId\":\"{}\", \"bucketId\":\"{}\"}}", self.credentials.id, bucket_id);
+            format!("{{\"accountId\":\"{}\", \"bucketId\":\"{}\"}}", self.account_id, bucket_id);
 
         let resp = try!(client.post(url)
             .body(Body::BufBody(body.as_bytes(), body.len()))

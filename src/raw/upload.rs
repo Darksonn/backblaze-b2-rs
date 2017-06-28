@@ -49,7 +49,7 @@ impl UploadAuthorization {
 /// Methods related to the [upload module][1].
 ///
 ///  [1]: ../upload/index.html
-impl<'a> B2Authorization<'a> {
+impl B2Authorization {
     /// Performs a [b2_get_upload_url][1] api call and returns the upload url wrapped in an
     /// [`UploadAuthorization`].
     ///

@@ -61,14 +61,14 @@ impl B2Credentials {
     ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
     ///  [`is_credentials_issue`]: ../../enum.B2Error.html#method.is_credentials_issue
     ///  [`B2Error`]: ../../enum.B2Error.html
-    pub fn authorize<'a>(&'a self, client: &Client) -> Result<B2Authorization<'a>,B2Error> {
+    pub fn authorize(&self, client: &Client) -> Result<B2Authorization,B2Error> {
         let resp = try!(client.get("https://api.backblazeb2.com/b2api/v1/b2_authorize_account")
             .header(self.clone())
             .send());
         if resp.status != hyper::status::StatusCode::Ok {
             Err(B2Error::from_response(resp))
         } else {
-            Ok(B2Authorization::from(self, try!(serde_json::from_reader(resp))))
+            Ok(B2Authorization::from(self.id.clone(), try!(serde_json::from_reader(resp))))
         }
     }
 }
@@ -101,18 +101,18 @@ struct B2AuthResponse {
 ///  [`authorize`]: struct.B2Credentials.html#method.authorize
 ///  [`B2Credentials`]: struct.B2Credentials.html
 #[derive(Debug)]
-pub struct B2Authorization<'a> {
-    pub credentials: &'a B2Credentials,
+pub struct B2Authorization {
+    pub account_id: String,
     pub authorization_token: String,
     pub api_url: String,
     pub download_url: String,
     pub recommended_part_size: usize,
     pub absolute_minimum_part_size: usize
 }
-impl<'a> B2Authorization<'a> {
-    fn from(credentials: &'a B2Credentials, resp: B2AuthResponse) -> B2Authorization<'a> {
+impl B2Authorization {
+    fn from(id: String, resp: B2AuthResponse) -> B2Authorization {
         B2Authorization {
-            credentials: credentials,
+            account_id: id,
             authorization_token: resp.authorization_token,
             api_url: resp.api_url,
             download_url: resp.download_url,

@@ -248,7 +248,7 @@ header! { (B2Range, "Range") => [String] }
 /// Methods related to the [download module][1].
 ///
 ///  [1]: ../download/index.html
-impl<'a> B2Authorization<'a> {
+impl B2Authorization {
     /// Use the authorization token in this B2Authorization as a download authorization. The
     /// DownloadAuthorization returned by this function can download any file on any bucket owned
     /// by this user.
