@@ -19,5 +19,9 @@ Unfortunately because of the hyper api design, the upload functionality in this
 library requires the connector instead of the client, and since the client
 consumes the connector, you'll have to make two of them.
 
+I have made a proof of concept command line tool using this library, which can
+be viewed [here][3].
+
   [1]: https://ryhl.io/backblaze.html
   [2]: https://docs.rs/backblaze-b2
+  [3]: https://github.com/Darksonn/b2cli-rs
