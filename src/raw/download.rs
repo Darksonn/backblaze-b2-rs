@@ -43,13 +43,13 @@ header! { (XBzContentSha1, "X-Bz-Content-Sha1") => [String] }
 ///  [`get_download_authorization`]: ../authorize/struct.B2Authorization.html#method.get_download_authorization
 #[derive(Serialize,Deserialize,Clone,Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadAuthorization<'a> {
+pub struct DownloadAuthorization {
     pub authorization_token: String,
     pub bucket_id: Option<String>,
     pub file_name_prefix: String,
-    pub download_url: &'a str
+    pub download_url: String
 }
-impl<'a> DownloadAuthorization<'a> {
+impl DownloadAuthorization {
     /// Returns a hyper header that can be added to download requests on the backblaze api.
     pub fn auth_header(&self) -> B2AuthHeader {
         B2AuthHeader(self.authorization_token.clone())
@@ -124,7 +124,7 @@ fn handle_download_response<InfoType>(resp: Response)
     Ok((resp, None))
 }
 
-impl<'a> DownloadAuthorization<'a> {
+impl DownloadAuthorization {
 
     /// Performs a [b2_download_file_by_id][1] api call.
     ///
@@ -252,12 +252,12 @@ impl B2Authorization {
     /// Use the authorization token in this B2Authorization as a download authorization. The
     /// DownloadAuthorization returned by this function can download any file on any bucket owned
     /// by this user.
-    pub fn to_download_authorization<'a>(&'a self) -> DownloadAuthorization<'a> {
+    pub fn to_download_authorization(&self) -> DownloadAuthorization {
         DownloadAuthorization {
             authorization_token: self.authorization_token.clone(),
             bucket_id: None,
             file_name_prefix: "".to_owned(),
-            download_url: &self.download_url
+            download_url: self.download_url.clone()
         }
     }
     /// Performs a [b2_get_download_authorization][1] api call. The DownloadAuthorization returned
@@ -271,9 +271,9 @@ impl B2Authorization {
     ///  [1]: https://www.backblaze.com/b2/docs/b2_get_download_authorization.html
     ///  [`B2Error`]: ../../enum.B2Error.html
     ///  [`is_bucket_not_found`]: ../../enum.B2Error.html#method.is_bucket_not_found
-    pub fn get_download_authorization<'s>(&'s self, bucket_id: &str, file_name_prefix: Option<&str>,
+    pub fn get_download_authorization(&self, bucket_id: &str, file_name_prefix: Option<&str>,
                                       expires_in_seconds: u32, client: &Client)
-        -> Result<DownloadAuthorization<'s>, B2Error>
+        -> Result<DownloadAuthorization, B2Error>
     {
         let url_string: String = format!("{}/b2api/v1/b2_get_download_authorization", self.api_url);
         let url: &str = &url_string;
@@ -316,7 +316,7 @@ impl B2Authorization {
                 authorization_token: authorization_token,
                 bucket_id: Some(bucket_id),
                 file_name_prefix: file_name_prefix,
-                download_url: &self.download_url
+                download_url: self.download_url.clone()
             })
         }
     }

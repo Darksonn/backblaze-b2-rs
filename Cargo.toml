@@ -1,6 +1,6 @@
 [package]
 name = "backblaze-b2"
-version = "0.1.9-1"
+version = "0.1.9-2"
 authors = ["Alice Ryhl <alice@ryhl.io>"]
 description = "Can send api requests to the backblaze b2 api."
 repository = "https://github.com/Darksonn/backblaze-b2-rs"
