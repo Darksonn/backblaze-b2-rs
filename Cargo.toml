@@ -1,6 +1,6 @@
 [package]
 name = "backblaze-b2"
-version = "0.1.9-2"
+version = "0.2.0-development"
 authors = ["Alice Ryhl <alice@ryhl.io>"]
 description = "Can send api requests to the backblaze b2 api."
 repository = "https://github.com/Darksonn/backblaze-b2-rs"
@@ -12,13 +12,19 @@ license = "MIT"
 exclude = ["credentials.txt"]
 
 [dependencies]
-base64 = "~0.5.0"
+base64 = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-hyper = "0.10.10"
+hyper = "0.12"
+sha1 = "0.6"
+http = "0.1"
+bytes = "0.4"
+futures = "0.1"
+tokio = "0.1"
+tokio-codec = "0.1"
+tokio-io = "0.1"
 
 [dev-dependencies]
-rand = "0.3"
-sha1 = "0.2.0"
-hyper-native-tls = "0.2.2"
+rand = "0.5"
+hyper-tls = "0.3"
