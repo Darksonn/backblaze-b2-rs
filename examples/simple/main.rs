@@ -10,14 +10,9 @@ extern crate rand;
 use hyper::body::Body;
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
-use futures::stream::{self, Stream};
-use futures::future::{self, Future, IntoFuture};
-use std::collections::HashMap;
+use futures::future::Future;
 use std::env;
-use std::io::Cursor;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::mpsc::channel;
 
 use tokio::runtime::Runtime;
 use tokio::fs::{File as TokioFile};
@@ -25,8 +20,8 @@ use tokio::fs::{File as TokioFile};
 use backblaze_b2::B2Error;
 use backblaze_b2::stream_util;
 use backblaze_b2::authorize::{B2Credentials, B2Authorization};
-use backblaze_b2::buckets::{self, Bucket, BucketType};
-use backblaze_b2::files::{self, upload, download, File as B2File};
+use backblaze_b2::buckets::{self, BucketType};
+use backblaze_b2::files::{self, upload, File as B2File};
 
 // When using this library you probably want to use this Client.
 type Client = hyper::client::Client<HttpsConnector<HttpConnector>, Body>;
@@ -101,7 +96,7 @@ fn upload_file(
     // When we are ready for the download, we want to actually perform the download.
     ready_future.and_then(move |((open_file, metadata), upload_url)| {
         // Notice the `move` on the closure. This is so we can use client inside the
-        // closure. The need for doing this is the reason for it to be internally
+        // closure. The need for doing this is the reason for the client to be internally
         // reference counted.
 
         // Extract the file name from the path.
