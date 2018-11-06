@@ -339,7 +339,7 @@ mod tests {
     fn empty_json() {
         const JSON: &'static str = "{[ \n]}";
         for i in 1..JSON.len() {
-            let mut json: PartialJson<u8> = PartialJson::new(0, 1);
+            let mut json: PartialJson<u8> = PartialJson::new(0, 2);
             let mut res: Vec<u8> = Vec::new();
 
             json.push(Bytes::from_static(&JSON.as_bytes()[..i]));
