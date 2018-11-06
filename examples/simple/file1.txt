@@ -1,0 +1,12 @@
+This is an example text file to be uploaded to backblaze.
+
+Here's a fish:
+
+ o
+o      ______/~/~/~/__           /((
+  o  // __            ====__    /_((
+ o  //  @))       ))))      ===/__((
+    ))           )))))))        __((
+    \\     \)     ))))    __===\ _((
+     \\_______________====      \_((
+                                 \((

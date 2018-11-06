@@ -1,14 +1,29 @@
+//! A library for interacting with the [backblaze b2 api][1].
+//!
+//! # Deadlocks
+//!
+//! A common problem when using this crate is that when you attempt to shut down the tokio
+//! runtime, it will run forever.
+//!
+//! The reason for this is that the client creates some futures that don't complete until
+//! the client has been dropped, but the runtime is shut down before the client has been
+//! dropped.
+//!
+//! The solution is therefore to ensure that the client has been [dropped][2] _before_
+//! calling the shutdown method.
+//!
+//! [1]: https://www.backblaze.com/b2/docs/
+//! [2]: https://doc.rust-lang.org/std/mem/fn.drop.html
 
-#![allow(unused_imports)]
 extern crate base64;
 extern crate serde;
 extern crate serde_json;
 extern crate sha1;
+extern crate percent_encoding;
 #[macro_use]
 extern crate serde_derive;
 extern crate bytes;
 
-#[macro_use]
 extern crate hyper;
 extern crate http;
 extern crate futures;
@@ -19,11 +34,29 @@ extern crate tokio_io;
 use std::fmt;
 use hyper::StatusCode;
 
-pub mod b2_future;
-pub mod capabilities;
 pub mod authorize;
 pub mod buckets;
+pub mod files;
+
+pub mod stream_util;
+pub mod b2_future;
 pub mod throttle;
+mod bytes_string;
+pub use bytes_string::BytesString;
+
+/// Parse the content length header.
+pub(crate) fn get_content_length(parts: &http::response::Parts) -> usize {
+    use http::header::CONTENT_LENGTH;
+    if let Some(size_str) = parts.headers.get(CONTENT_LENGTH) {
+        match size_str.to_str().map(str::parse) {
+            Ok(Ok(size)) => {
+                return size;
+            },
+            _ => {},
+        }
+    }
+    0
+}
 
 /// The b2 api returns errors in a json-object, that can be deserialized into this struct.
 /// This struct is usually contained in a [`B2Error`].
@@ -70,8 +103,17 @@ pub enum B2Error {
     /// This type is only returned if the b2 website is not following the api spec.
     ApiInconsistency(String)
 }
+impl B2Error {
+    /// Turn this error into an io error.
+    pub fn into_io_error(self) -> std::io::Error {
+        std::io::Error::new(self.get_io_kind(), self)
+    }
+}
 /// Load errors
 impl B2Error {
+    pub(crate) fn api(s: &str) -> B2Error {
+        B2Error::ApiInconsistency(String::from(s))
+    }
     /// Returns true if the B2 server returned any status code in the 5xx range. According
     /// to the B2 specification, one should obtain new authentication in this case, so the
     /// method [`should_obtain_new_authentication`] always returns true if this method
@@ -89,14 +131,27 @@ impl B2Error {
             status == 429
         } else { false }
     }
-    fn get_io_kind(&self) -> Option<::std::io::ErrorKind> {
+    fn get_io_kind(&self) -> std::io::ErrorKind {
+        use std::io::ErrorKind;
+        use std::error::Error;
         match self {
-            B2Error::IOError(ref ioe) => Some(ioe),
             B2Error::HyperError(ref err) => {
-                err.cause2().and_then(|err| err.downcast_ref::<std::io::Error>())
+                err.cause2()
+                    .and_then(|err| err.downcast_ref::<std::io::Error>())
+                    .map(|err| err.kind())
+                    .unwrap_or(ErrorKind::Other)
             },
-            _ => None
-        }.map(|io| io.kind())
+            B2Error::HttpError(_) => ErrorKind::InvalidData,
+            B2Error::IOError(ref ioe) => ioe.kind(),
+            B2Error::JsonError(ref err) => {
+                err.source()
+                    .and_then(|err| err.downcast_ref::<std::io::Error>())
+                    .map(|err| err.kind())
+                    .unwrap_or(ErrorKind::InvalidData)
+            },
+            B2Error::B2Error(_, _) => ErrorKind::Other,
+            B2Error::ApiInconsistency(_) => ErrorKind::InvalidData,
+        }
     }
     /// Returns true if any of the situtations described on the [B2 documentation][1] has
     /// occurred.  When this function returns true, you should obtain a new
@@ -105,17 +160,15 @@ impl B2Error {
     ///  [1]: https://www.backblaze.com/b2/docs/uploading.html
     ///  [`B2Authorization`]: raw/authorize/struct.B2Authorization.html
     pub fn should_obtain_new_authentication(&self) -> bool {
-        if let Some(ref ioe) = self.get_io_kind() {
-            match ioe {
-                &::std::io::ErrorKind::BrokenPipe => true,
-                &::std::io::ErrorKind::ConnectionRefused => true,
-                &::std::io::ErrorKind::ConnectionReset => true,
-                &::std::io::ErrorKind::ConnectionAborted => true,
-                &::std::io::ErrorKind::NotConnected => true,
-                &::std::io::ErrorKind::TimedOut => true,
-                _ => false
-            }
-        } else { self.is_authorization_issue() || self.is_service_unavilable() }
+        match self.get_io_kind() {
+            std::io::ErrorKind::BrokenPipe => true,
+            std::io::ErrorKind::ConnectionRefused => true,
+            std::io::ErrorKind::ConnectionReset => true,
+            std::io::ErrorKind::ConnectionAborted => true,
+            std::io::ErrorKind::NotConnected => true,
+            std::io::ErrorKind::TimedOut => true,
+            _ => self.is_authorization_issue() || self.is_service_unavilable()
+        }
     }
     /// Returns true if you should be using some sort of exponential back off for future
     /// requests.

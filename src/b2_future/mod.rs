@@ -1,20 +1,22 @@
+//! Futures that parse the `ResponseFuture` returned from hyper.
+
 use hyper::{client::ResponseFuture, Body};
 use futures::{Poll, Future, Async, Stream};
 use http::response::Parts;
 use http::StatusCode;
-use bytes::Bytes;
 use serde::Deserialize;
 
 use std::mem;
 use std::marker::PhantomData;
-use std::io::{Read, Cursor};
 
-use B2Error;
+use crate::B2Error;
+
+mod b2_stream;
+pub use self::b2_stream::B2Stream;
 
 /// A future that reads all data from a hyper future and parses it with `serde_json`.
 pub struct B2Future<T> {
     state: State<T>,
-    capacity: usize,
 }
 enum State<T> {
     Connecting(ResponseFuture),
@@ -26,23 +28,23 @@ enum State<T> {
 // method on B2Future which is a &mut method, only one thread can access the Body at
 // a time.
 unsafe impl<T> Sync for State<T> {}
+// We don't actually contain any values of T, so sending this value doesn't send a value
+// of T. T is only used for return values.
+unsafe impl<T> Send for State<T> {}
 
 impl<T> B2Future<T>
     where for<'de> T: Deserialize<'de>
 {
-    /// Create a new `B2Future`. The `capacity` is the initial size of the allocation
-    /// meant to hold the body of the response.
-    pub fn new(resp: ResponseFuture, capacity: usize) -> Self {
+    /// Create a new `B2Future`.
+    pub fn new(resp: ResponseFuture) -> Self {
         B2Future {
             state: State::Connecting(resp),
-            capacity,
         }
     }
     /// Create a `B2Future` that immediately fails with the specified error.
-    pub fn err(err: impl Into<B2Error>) -> Self {
+    pub fn err<E: Into<B2Error>>(err: E) -> Self {
         B2Future {
             state: State::FailImmediately(err.into()),
-            capacity: 0,
         }
     }
 }
@@ -54,7 +56,7 @@ impl<T> Future for B2Future<T>
     fn poll(&mut self) -> Poll<T, B2Error> {
         let mut state = mem::replace(&mut self.state, State::Done(PhantomData));
         loop {
-            let (new_state, action) = state.poll(self.capacity);
+            let (new_state, action) = state.poll();
             state = new_state;
             match action {
                 Action::Done(poll) => {
@@ -80,7 +82,7 @@ impl<T> State<T>
         State::Done(PhantomData)
     }
     #[inline]
-    fn poll(self, cap: usize) -> (State<T>, Action<T>) {
+    fn poll(self) -> (State<T>, Action<T>) {
         match self {
             State::Connecting(mut fut) => {
                 match fut.poll() {
@@ -90,7 +92,8 @@ impl<T> State<T>
                     },
                     Ok(Async::Ready(resp)) => {
                         let (parts, body) = resp.into_parts();
-                        (State::Collecting(parts, body, Vec::with_capacity(cap)),
+                        let size = crate::get_content_length(&parts);
+                        (State::Collecting(parts, body, Vec::with_capacity(size)),
                         Action::Again())
                     },
                     Err(e) => {
@@ -147,7 +150,7 @@ impl<T> State<T>
                 (State::done(), Action::Done(Err(err)))
             }
             State::Done(_) => {
-                panic!("poll on finished backblaze_b2::serde_future::B2Future");
+                panic!("poll on finished backblaze_b2::b2_future::B2Future");
             }
         }
     }

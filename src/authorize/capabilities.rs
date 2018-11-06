@@ -1,7 +1,8 @@
-use serde::de::{self, Visitor, Deserialize, Error, Unexpected, Expected};
+use serde::de::{self, Visitor, Deserialize, Error, Unexpected};
 use serde::ser::{Serialize, Serializer, SerializeSeq};
 use std::fmt;
 
+/// The capabilities of a backblaze authorization.
 #[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub struct Capabilities {
     pub list_keys: bool,

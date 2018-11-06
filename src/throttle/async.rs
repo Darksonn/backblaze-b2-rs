@@ -12,12 +12,11 @@ use tokio::prelude::task;
 use tokio_codec::{FramedRead, BytesCodec};
 use tokio_io::AsyncRead;
 
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::Bytes;
 
 use std::cmp::min;
 use std::mem;
 use std::time::{Instant, Duration};
-use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::{Release, Acquire};
@@ -198,9 +197,10 @@ where
     #[inline]
     fn cut_chunk(&mut self, mut bytes: Bytes) -> (Bytes, Option<Bytes>) {
         if self.tokens < bytes.len() {
-            let first = bytes.split_to(self.tokens);
+            let remaining = bytes.split_off(self.tokens);
+            assert_eq!(bytes.len(), self.tokens);
             self.tokens = 0;
-            (first, Some(bytes))
+            (bytes, Some(remaining))
         } else {
             self.tokens -= bytes.len();
             (bytes, None)
@@ -252,11 +252,13 @@ where
         };
         if self.rate == 0 {
             // No throttling is done.
-            return Ok(Async::Ready(Some(bytes)));
+            return Ok(Async::Ready(Some(next)));
         }
+        self.register();
         self.fill_tokens(Instant::now());
         if self.tokens < next.len() && self.tokens < 1024 {
-            let needed_tokens = min(self.bucket_size, next.len() - self.tokens);
+            let needed_tokens = min(self.bucket_size, next.len() - self.tokens)
+                .saturating_mul(self.stream_count.load(Acquire));
             // Here we divide round up, preferring to wait a millisecond more than one too
             // few. Notice that if the numerator is zero this returns one. This is good as
             // we want to make sure the timeout isn't zero.
@@ -280,9 +282,11 @@ where
                     // are polled before the timeout completes, we won't poll the timeout
                     // again.
                     self.timeout = Some(timeout);
+                    self.next = Some(next);
                     return Ok(Async::NotReady);
                 },
                 Err(err) => {
+                    self.next = Some(next);
                     if err.is_shutdown() {
                         panic!("ThrottledStream requires a timer to be available.");
                     } else if err.is_at_capacity() {
@@ -297,7 +301,6 @@ where
         let (send, store) = self.cut_chunk(next);
         self.next = store;
         self.timeout = None;
-        self.register();
         Ok(Async::Ready(Some(send)))
     }
 }

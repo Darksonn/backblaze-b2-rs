@@ -11,12 +11,10 @@ use tokio::prelude::task;
 use tokio_codec::{FramedRead, BytesCodec};
 use tokio_io::AsyncRead;
 
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::Bytes;
 
 use std::cmp::min;
-use std::mem;
 use std::time::{Instant, Duration};
-use std::io::Read;
 
 pub mod async;
 
@@ -151,9 +149,10 @@ where
     #[inline]
     fn cut_chunk(&mut self, mut bytes: Bytes) -> (Bytes, Option<Bytes>) {
         if self.tokens < bytes.len() {
-            let first = bytes.split_to(self.tokens);
+            let remaining = bytes.split_off(self.tokens);
+            assert_eq!(bytes.len(), self.tokens);
             self.tokens = 0;
-            (first, Some(bytes))
+            (bytes, Some(remaining))
         } else {
             self.tokens -= bytes.len();
             (bytes, None)
@@ -177,7 +176,7 @@ where
     type Item = Bytes;
     type Error = S::Error;
     fn poll(&mut self) -> Poll<Option<Bytes>, S::Error> {
-        let next = match mem::replace(&mut self.next, None) {
+        let next = match self.next.take() {
             Some(bytes) => bytes,
             None => match self.inner.poll() {
                 Err(err) => return Err(err),
@@ -216,9 +215,11 @@ where
                     // are polled before the timeout completes, we won't poll the timeout
                     // again.
                     self.timeout = Some(timeout);
+                    self.next = Some(next);
                     return Ok(Async::NotReady);
                 },
                 Err(err) => {
+                    self.next = Some(next);
                     if err.is_shutdown() {
                         panic!("ThrottledStream requires a timer to be available.");
                     } else if err.is_at_capacity() {
