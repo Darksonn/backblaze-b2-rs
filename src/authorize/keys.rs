@@ -208,6 +208,20 @@ pub struct ListKeysResponse {
     #[serde(rename = "nextApplicationKeyId")]
     pub next_key: Option<String>,
 }
+impl IntoIterator for ListKeysResponse {
+    type Item = Key;
+    type IntoIter = std::vec::IntoIter<Key>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.keys.into_iter()
+    }
+}
+impl<'a> IntoIterator for &'a ListKeysResponse {
+    type Item = &'a Key;
+    type IntoIter = std::slice::Iter<'a, Key>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.keys.iter()
+    }
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

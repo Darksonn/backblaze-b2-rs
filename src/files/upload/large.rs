@@ -337,6 +337,13 @@ impl IntoIterator for ListUnfinishedLargeFilesResponse {
         self.files.into_iter()
     }
 }
+impl<'a> IntoIterator for &'a ListUnfinishedLargeFilesResponse {
+    type Item = &'a File;
+    type IntoIter = std::slice::Iter<'a, File>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.files.iter()
+    }
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

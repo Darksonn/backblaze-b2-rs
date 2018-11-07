@@ -202,6 +202,13 @@ impl IntoIterator for ListFileVersionsResponse {
         self.files.into_iter()
     }
 }
+impl<'a> IntoIterator for &'a ListFileVersionsResponse {
+    type Item = &'a File;
+    type IntoIter = std::slice::Iter<'a, File>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.files.iter()
+    }
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -281,6 +288,13 @@ impl IntoIterator for ListFileNamesResponse {
     type IntoIter = std::vec::IntoIter<File>;
     fn into_iter(self) -> Self::IntoIter {
         self.files.into_iter()
+    }
+}
+impl<'a> IntoIterator for &'a ListFileNamesResponse {
+    type Item = &'a File;
+    type IntoIter = std::slice::Iter<'a, File>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.files.iter()
     }
 }
 
