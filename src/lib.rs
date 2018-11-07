@@ -158,7 +158,7 @@ impl B2Error {
     /// [`B2Authorization`].
     ///
     ///  [1]: https://www.backblaze.com/b2/docs/uploading.html
-    ///  [`B2Authorization`]: raw/authorize/struct.B2Authorization.html
+    ///  [`B2Authorization`]: authorize/struct.B2Authorization.html
     pub fn should_obtain_new_authentication(&self) -> bool {
         match self.get_io_kind() {
             std::io::ErrorKind::BrokenPipe => true,

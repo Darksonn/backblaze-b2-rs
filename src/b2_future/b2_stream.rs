@@ -214,7 +214,6 @@ where
         self.buffer.extend(&bytes[..]);
     }
     fn next_value(&mut self) -> Result<T, ::serde_json::Error> {
-        use std::str::from_utf8;
         let i = self.i - 1;
         let res = {
             let (first, second) = self.buffer.as_slices();

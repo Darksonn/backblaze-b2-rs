@@ -106,16 +106,17 @@ fn upload_file(
 
         // We need to prepare the file for the upload function first.
         // This can be done like this:
-        let body = Body::wrap_stream(stream_util::chunked_stream(open_file));
+        let stream = stream_util::chunked_stream(open_file);
+        let with_sha1 = stream_util::sha1_at_end(stream);
 
         upload::upload_file(
             &upload_url,
             &client,
             file_name,
-            body,
+            Body::wrap_stream(with_sha1),
             "b2/x-auto", // let backblaze figure out the content type.
-            metadata.len() as usize,
-            "do_not_verify",
+            stream_util::len_with_sha1(metadata.len() as usize),
+            "hex_digits_at_end",
             None,
             None,
         ).map(|file| {

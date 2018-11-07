@@ -40,6 +40,70 @@ impl<R: AsyncRead> Stream for Chunked<R> {
     }
 }
 
+/// Append the sha1 of a stream to the end of the stream.
+///
+/// As described on the backblaze documentation on [uploading][1], the sha1 of a file can
+/// optionally be appended to the end of an upload. In order to do this, use the return
+/// value of this function as the body of the request, [add 40 to the content length][2]
+/// and use the string `hex_digits_at_end` as the sha1 in the upload function.
+///
+/// [1]: https://www.backblaze.com/b2/docs/uploading.html
+/// [2]: fn.len_with_sha1.html
+pub fn sha1_at_end<S>(stream: S) -> Sha1AtEnd<S>
+where
+    S: Stream<Item = Bytes>
+{
+    Sha1AtEnd {
+        inner: stream,
+        sha1: sha1::Sha1::new(),
+        done: false,
+    }
+}
+/// When uploading files with the sha1 at the end, the sha1 must be appended to the
+/// length. The sha1 is 40 bytes.
+///
+/// This function simply returns `len + 40`.
+pub fn len_with_sha1(len: usize) -> usize {
+    len + 40
+}
+/// Append the sha1 of a stream to the end.
+///
+/// This type is created by the function [`sha1_at_end`].
+///
+/// [`sha1_at_end`]: fn.sha1_at_end.html
+pub struct Sha1AtEnd<S> {
+    inner: S,
+    sha1: sha1::Sha1,
+    done: bool,
+}
+impl<S> Stream for Sha1AtEnd<S>
+where
+    S: Stream<Item = Bytes>
+{
+    type Item = Bytes;
+    type Error = S::Error;
+    fn poll(&mut self) -> Poll<Option<Bytes>, S::Error> {
+        if self.done {
+            Ok(Async::Ready(None))
+        } else {
+            match self.inner.poll() {
+                Ok(Async::Ready(Some(bytes))) => {
+                    self.sha1.update(&bytes[..]);
+                    Ok(Async::Ready(Some(bytes)))
+                },
+                Ok(Async::Ready(None)) => {
+                    self.done = true;
+                    let sha1_bytes = Bytes::from(self.sha1.hexdigest());
+                    Ok(Async::Ready(Some(sha1_bytes)))
+                },
+                Ok(Async::NotReady) => Ok(Async::NotReady),
+                Err(err) => Err(err.into()),
+            }
+        }
+    }
+}
+
+
 /// Collect a chunked stream to a `Vec<u8>`.
 ///
 /// The internal vector will initially have a capacity of `size_hint`.
