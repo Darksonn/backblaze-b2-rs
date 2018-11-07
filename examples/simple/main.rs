@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
     // Often using a single threaded runtime instead would be fine.
     let mut runtime = Runtime::new().unwrap();
 
-    let https = HttpsConnector::new(1).unwrap();
+    let https = HttpsConnector::new(1)?;
     let client = hyper::client::Client::builder().build(https);
 
     // Let's authenticate our account.
