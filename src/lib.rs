@@ -57,6 +57,7 @@ pub(crate) fn get_content_length(parts: &http::response::Parts) -> usize {
 }
 
 /// The b2 api returns errors in a json-object, that can be deserialized into this struct.
+///
 /// This struct is usually contained in a [`B2Error`].
 ///
 ///  [`B2Error`]: enum.B2Error.html
