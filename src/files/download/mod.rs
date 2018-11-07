@@ -272,7 +272,7 @@ pub fn download_by_id<C, Auth>(
     auth: &Auth,
     client: &Client<C, Body>,
     file_id: &str,
-    range: Option<(usize, usize)>,
+    range: Option<(u64, u64)>,
 ) -> DownloadFuture
 where
     Auth: CanAuthorizeIdDownload,
@@ -314,7 +314,7 @@ pub fn download_by_name<C, Auth>(
     client: &Client<C, Body>,
     bucket_name: &str,
     file_name: &str,
-    range: Option<(usize, usize)>,
+    range: Option<(u64, u64)>,
 ) -> DownloadFuture
 where
     Auth: CanAuthorizeNameDownload,

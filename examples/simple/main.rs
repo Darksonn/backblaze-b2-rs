@@ -115,7 +115,7 @@ fn upload_file(
             file_name,
             Body::wrap_stream(with_sha1),
             "b2/x-auto", // let backblaze figure out the content type.
-            stream_util::len_with_sha1(metadata.len() as usize),
+            stream_util::len_with_sha1(metadata.len()),
             "hex_digits_at_end",
             None,
             None,

@@ -63,7 +63,7 @@ where
 /// length. The sha1 is 40 bytes.
 ///
 /// This function simply returns `len + 40`.
-pub fn len_with_sha1(len: usize) -> usize {
+pub fn len_with_sha1(len: u64) -> u64 {
     len + 40
 }
 /// Append the sha1 of a stream to the end.

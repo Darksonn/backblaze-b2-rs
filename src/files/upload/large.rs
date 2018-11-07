@@ -125,7 +125,7 @@ where
 pub struct CancelLargeFileResponse {
     pub file_id: String,
     pub file_name: String,
-    pub bucket_id: usize,
+    pub bucket_id: String,
     pub account_id: String,
 }
 
@@ -264,7 +264,7 @@ where
 pub struct UploadPartResponse {
     pub file_id: String,
     pub part_number: usize,
-    pub content_length: usize,
+    pub content_length: u64,
     pub content_sha1: String,
     pub upload_timestamp: i64,
 }
@@ -294,7 +294,7 @@ pub fn upload_part<C, B>(
     client: &Client<C, B>,
     part_number: usize,
     body: impl Into<B>,
-    content_length: usize,
+    content_length: u64,
     content_sha1: &str,
 ) -> B2Future<UploadPartResponse>
 where

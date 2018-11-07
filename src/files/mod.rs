@@ -24,7 +24,7 @@ pub struct File {
     pub account_id: BytesString,
     pub action: Action,
     pub bucket_id: String,
-    pub content_length: usize,
+    pub content_length: u64,
     pub content_sha1: String,
     pub content_type: String,
     pub file_id: String,

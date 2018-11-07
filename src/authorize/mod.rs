@@ -104,8 +104,8 @@ struct B2AuthResponse {
     allowed: Allowed,
     api_url: BytesString,
     download_url: BytesString,
-    recommended_part_size: usize,
-    absolute_minimum_part_size: usize,
+    recommended_part_size: u64,
+    absolute_minimum_part_size: u64,
 }
 /// Describes what a certain authorization is allowed to do.
 ///

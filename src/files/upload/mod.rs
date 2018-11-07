@@ -95,7 +95,7 @@ pub fn upload_file<C, B>(
     file_name: &str,
     body: impl Into<B>,
     content_type: &str,
-    content_length: usize,
+    content_length: u64,
     content_sha1: &str,
     last_modified_millis: Option<u64>,
     content_disposition: Option<&str>,
@@ -154,7 +154,7 @@ pub fn upload_file_info<C, B, InfoName, InfoValue>(
     file_name: &str,
     body: impl Into<B>,
     content_type: &str,
-    content_length: usize,
+    content_length: u64,
     content_sha1: &str,
     info: impl IntoIterator<Item = (InfoName, InfoValue)>,
 ) -> B2Future<File>
@@ -172,7 +172,7 @@ where
                                Bytes::from(url.authorization_token.clone()));
     request.header::<_, &str>("X-Bz-File-Name", file_name);
     request.header::<_, &str>("Content-Type", content_type);
-    request.header::<_, usize>("Content-Length", content_length);
+    request.header::<_, u64>("Content-Length", content_length);
     request.header::<_, &str>("X-Bz-Content-Sha1", content_sha1);
     for (key, value) in info {
         request.header::<_, InfoValue>(Bytes::from(format!("X-Bz-Info-{}", key)), value);
