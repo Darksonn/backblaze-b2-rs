@@ -35,6 +35,7 @@ use std::fmt;
 use hyper::StatusCode;
 
 pub mod api;
+pub mod prelude;
 pub mod stream_util;
 pub mod b2_future;
 pub mod throttle;
