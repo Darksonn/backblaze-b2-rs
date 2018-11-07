@@ -34,10 +34,7 @@ extern crate tokio_io;
 use std::fmt;
 use hyper::StatusCode;
 
-pub mod authorize;
-pub mod buckets;
-pub mod files;
-
+pub mod api;
 pub mod stream_util;
 pub mod b2_future;
 pub mod throttle;

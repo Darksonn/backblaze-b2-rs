@@ -15,7 +15,7 @@ use bytes::Bytes;
 use futures::{Poll, Future, Async};
 
 use crate::{BytesString, B2Error};
-use crate::authorize::B2Authorization;
+use crate::api::authorize::B2Authorization;
 use crate::b2_future::B2Future;
 
 //pub mod large;

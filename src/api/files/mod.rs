@@ -9,7 +9,7 @@ use hyper::body::Body;
 use hyper::client::connect::Connect;
 
 use crate::BytesString;
-use crate::authorize::B2Authorization;
+use crate::api::authorize::B2Authorization;
 use crate::b2_future::B2Future;
 
 pub mod upload;

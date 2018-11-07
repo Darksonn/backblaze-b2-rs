@@ -22,9 +22,9 @@ use tokio_io::io::AllowStdIo;
 
 use backblaze_b2::B2Error;
 use backblaze_b2::stream_util;
-use backblaze_b2::authorize::{B2Credentials, B2Authorization};
-use backblaze_b2::buckets::{self, Bucket, BucketType};
-use backblaze_b2::files::{self, upload, download, File};
+use backblaze_b2::api::authorize::{B2Credentials, B2Authorization};
+use backblaze_b2::api::buckets::{self, Bucket, BucketType};
+use backblaze_b2::api::files::{self, upload, download, File};
 
 type Client = hyper::client::Client<HttpsConnector<HttpConnector>, Body>;
 
@@ -40,7 +40,7 @@ fn new_client() -> Client {
     let https = HttpsConnector::new(2).unwrap();
     hyper::client::Client::builder().build(https)
 }
-fn authorize(client: &Client) -> backblaze_b2::authorize::B2AuthFuture {
+fn authorize(client: &Client) -> backblaze_b2::api::authorize::B2AuthFuture {
     let creds = read_creds();
     creds.authorize(&client)
 }

@@ -12,7 +12,7 @@ impl BucketType {
     /// backblaze api.
     ///
     /// ```
-    /// use backblaze_b2::buckets::BucketType;
+    /// use backblaze_b2::api::buckets::BucketType;
     ///
     /// assert_eq!(BucketType::from_str("allPublic"), Some(BucketType::Public));
     /// assert_eq!(BucketType::from_str("allPrivate"), Some(BucketType::Private));

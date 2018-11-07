@@ -8,7 +8,7 @@ use hyper::body::Body;
 use hyper::client::connect::Connect;
 
 use crate::BytesString;
-use crate::authorize::{Capabilities, B2Credentials, B2Authorization};
+use crate::api::authorize::{Capabilities, B2Credentials, B2Authorization};
 use crate::b2_future::B2Future;
 
 /// An authorization key with its secret application key.

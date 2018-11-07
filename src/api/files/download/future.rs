@@ -7,7 +7,7 @@ use std::mem;
 
 use crate::B2Error;
 
-use crate::files::download::DownloadStream;
+use crate::api::files::download::DownloadStream;
 
 /// A future waiting for a backblaze download to start.
 ///

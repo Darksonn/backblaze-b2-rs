@@ -10,7 +10,7 @@ use hyper::client::connect::Connect;
 
 use crate::BytesString;
 use crate::b2_future::{B2Future, B2Stream};
-use crate::authorize::B2Authorization;
+use crate::api::authorize::B2Authorization;
 
 use serde::ser::Serialize;
 

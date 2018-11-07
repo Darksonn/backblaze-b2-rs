@@ -19,7 +19,7 @@ impl Action {
     /// api.
     ///
     /// ```
-    /// use backblaze_b2::files::Action;
+    /// use backblaze_b2::api::files::Action;
     ///
     /// assert_eq!(Action::from_str("upload"), Some(Action::Upload));
     /// assert_eq!(Action::from_str("start"), Some(Action::Start));

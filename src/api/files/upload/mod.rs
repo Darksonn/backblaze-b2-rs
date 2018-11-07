@@ -8,9 +8,9 @@ use hyper::client::connect::Connect;
 use bytes::Bytes;
 
 use crate::BytesString;
-use crate::authorize::B2Authorization;
 use crate::b2_future::B2Future;
-use crate::files::File;
+use crate::api::authorize::B2Authorization;
+use crate::api::files::File;
 
 pub mod large;
 

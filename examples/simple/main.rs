@@ -19,9 +19,9 @@ use tokio::fs::{File as TokioFile};
 
 use backblaze_b2::B2Error;
 use backblaze_b2::stream_util;
-use backblaze_b2::authorize::{B2Credentials, B2Authorization};
-use backblaze_b2::buckets::{self, BucketType};
-use backblaze_b2::files::{self, upload, File as B2File};
+use backblaze_b2::api::authorize::{B2Credentials, B2Authorization};
+use backblaze_b2::api::buckets::{self, BucketType};
+use backblaze_b2::api::files::{self, upload, File as B2File};
 
 // When using this library you probably want to use this Client.
 type Client = hyper::client::Client<HttpsConnector<HttpConnector>, Body>;
