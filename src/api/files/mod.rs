@@ -8,17 +8,17 @@ use serde_json::to_vec;
 use hyper::body::Body;
 use hyper::client::connect::Connect;
 
-use crate::BytesString;
 use crate::api::authorize::B2Authorization;
 use crate::b2_future::B2Future;
+use crate::BytesString;
 
-pub mod upload;
-pub mod download;
 mod action;
+pub mod download;
+pub mod upload;
 pub use self::action::Action;
 
 /// Describes a file on backblaze.
-#[derive(Deserialize,Serialize,Debug,PartialEq,Eq,Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct File {
     pub account_id: BytesString,
@@ -58,9 +58,7 @@ where
     let mut request = Request::post(url_string);
     request.header("Authorization", auth.auth_token());
 
-    let body = match to_vec(&GetFileInfoRequest {
-        file_id,
-    }) {
+    let body = match to_vec(&GetFileInfoRequest { file_id }) {
         Ok(body) => body,
         Err(err) => return B2Future::err(err),
     };
@@ -75,8 +73,6 @@ where
 
     B2Future::new(future)
 }
-
-
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,8 +123,6 @@ where
     B2Future::new(future)
 }
 
-
-
 /// The response of the [`delete_file`] api call.
 ///
 /// [`delete_file`]: fn.delete_file.html
@@ -167,10 +161,7 @@ where
     let mut request = Request::post(url_string);
     request.header("Authorization", auth.auth_token());
 
-    let body = match to_vec(&DeleteFileRequest {
-        file_id,
-        file_name,
-    }) {
+    let body = match to_vec(&DeleteFileRequest { file_id, file_name }) {
         Ok(body) => body,
         Err(err) => return B2Future::err(err),
     };
@@ -225,7 +216,6 @@ struct ListFileVersionsRequest<'a> {
     delimeter: Option<&'a str>,
 }
 
-
 /// Lists the file versions in a bucket. Requires the `listFiles` capability.
 ///
 /// This is done using the [b2_list_file_versions][1] api call.
@@ -273,8 +263,6 @@ where
     B2Future::new(future)
 }
 
-
-
 /// The return value of [`list_file_names`].
 ///
 /// [`list_file_names`]: fn.list_file_names.html
@@ -310,7 +298,6 @@ struct ListFileNamesRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     delimeter: Option<&'a str>,
 }
-
 
 /// Lists the file names in a bucket. Requires the `listFiles` capability.
 ///

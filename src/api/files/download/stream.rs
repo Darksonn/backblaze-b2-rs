@@ -1,9 +1,9 @@
-use hyper::Body;
 use http::response::Parts;
+use hyper::Body;
 
-use futures::{Poll, Async, Stream};
 use bytes::Bytes;
 use crate::stream_util::{self, Collect};
+use futures::{Async, Poll, Stream};
 
 use B2Error;
 
@@ -29,8 +29,8 @@ impl DownloadStream {
                         inner: Inner(body),
                         size: Some(size),
                     };
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         DownloadStream {
@@ -72,10 +72,10 @@ impl Stream for DownloadStream {
                     self.size = Some(size - chunk.len());
                 }
                 Ok(Async::Ready(Some(Bytes::from(chunk))))
-            },
+            }
             Ok(Async::Ready(None)) => Ok(Async::Ready(None)),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Err(err.into())
+            Err(err) => Err(err.into()),
         }
     }
 }

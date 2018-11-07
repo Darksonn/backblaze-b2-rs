@@ -1,16 +1,16 @@
 //! Upload files to backblaze.
 use serde_json::to_vec;
 
-use hyper::{Client, Request};
 use hyper::body::{Body, Payload};
 use hyper::client::connect::Connect;
+use hyper::{Client, Request};
 
 use bytes::Bytes;
 
-use crate::BytesString;
-use crate::b2_future::B2Future;
 use crate::api::authorize::B2Authorization;
 use crate::api::files::File;
+use crate::b2_future::B2Future;
+use crate::BytesString;
 
 pub mod large;
 
@@ -54,9 +54,7 @@ where
     let mut request = Request::post(url_string);
     request.header("Authorization", auth.auth_token());
 
-    let body = match to_vec(&GetUploadUrlRequest {
-        bucket_id,
-    }) {
+    let body = match to_vec(&GetUploadUrlRequest { bucket_id }) {
         Ok(body) => body,
         Err(err) => return B2Future::err(err),
     };
@@ -108,7 +106,10 @@ where
     B::Data: Send,
 {
     let mut request = Request::post(Bytes::from(url.upload_url.clone()));
-    request.header("Authorization", Bytes::from(url.authorization_token.clone()));
+    request.header(
+        "Authorization",
+        Bytes::from(url.authorization_token.clone()),
+    );
     request.header("X-Bz-File-Name", file_name);
     request.header("Content-Type", content_type);
     request.header("Content-Length", content_length);
@@ -129,7 +130,6 @@ where
 
     B2Future::new(future)
 }
-
 
 /// Upload a file. This requires the `writeFiles` capability.
 ///
@@ -168,8 +168,10 @@ where
     http::header::HeaderValue: http::HttpTryFrom<InfoValue>,
 {
     let mut request = Request::post(Bytes::from(url.upload_url.clone()));
-    request.header::<_, Bytes>("Authorization",
-                               Bytes::from(url.authorization_token.clone()));
+    request.header::<_, Bytes>(
+        "Authorization",
+        Bytes::from(url.authorization_token.clone()),
+    );
     request.header::<_, &str>("X-Bz-File-Name", file_name);
     request.header::<_, &str>("Content-Type", content_type);
     request.header::<_, u64>("Content-Length", content_length);

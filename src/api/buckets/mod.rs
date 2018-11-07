@@ -8,9 +8,9 @@ use serde_json::to_vec;
 use hyper::body::Body;
 use hyper::client::connect::Connect;
 
-use crate::BytesString;
-use crate::b2_future::{B2Future, B2Stream};
 use crate::api::authorize::B2Authorization;
+use crate::b2_future::{B2Future, B2Stream};
+use crate::BytesString;
 
 use serde::ser::Serialize;
 
@@ -21,7 +21,7 @@ pub use self::bucket_type::BucketType;
 /// documentation][1].
 ///
 /// [1]: https://www.backblaze.com/b2/docs/lifecycle_rules.html
-#[derive(Serialize,Deserialize,Debug,Clone,Eq,PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LifecycleRule {
     pub days_from_uploading_to_hiding: Option<u32>,
@@ -33,7 +33,7 @@ pub struct LifecycleRule {
 /// documentation][1].
 ///
 /// [1]: https://www.backblaze.com/b2/docs/cors_rules.html
-#[derive(Serialize,Deserialize,Debug,Clone,Eq,PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CorsRule {
     pub cors_rule_name: String,
@@ -48,7 +48,7 @@ pub struct CorsRule {
 ///
 /// The `Eq` implementation considers two bucket objects equal, even if their revision
 /// number is different.
-#[derive(Serialize,Deserialize,Debug,Clone,Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Bucket {
     pub account_id: String,
@@ -62,13 +62,13 @@ pub struct Bucket {
 }
 impl PartialEq<Bucket> for Bucket {
     fn eq(&self, other: &Bucket) -> bool {
-        self.account_id == other.account_id &&
-        self.bucket_id == other.bucket_id &&
-        self.bucket_name == other.bucket_name &&
-        self.bucket_type == other.bucket_type &&
-        self.bucket_info == other.bucket_info &&
-        self.lifecycle_rules == other.lifecycle_rules &&
-        self.cors_rules == other.cors_rules
+        self.account_id == other.account_id
+            && self.bucket_id == other.bucket_id
+            && self.bucket_name == other.bucket_name
+            && self.bucket_type == other.bucket_type
+            && self.bucket_info == other.bucket_info
+            && self.lifecycle_rules == other.lifecycle_rules
+            && self.cors_rules == other.cors_rules
     }
 }
 
@@ -76,7 +76,8 @@ impl PartialEq<Bucket> for Bucket {
 pub struct NoBucketInfo;
 impl Serialize for NoBucketInfo {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::ser::Serializer
+    where
+        S: serde::ser::Serializer,
     {
         let map: HashMap<&str, &str> = HashMap::new();
         Serialize::serialize(&map, serializer)
@@ -247,8 +248,6 @@ where
     B2Future::new(future)
 }
 
-
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateBucketRequest<'a, T: 'a> {
@@ -323,5 +322,3 @@ where
 
     B2Future::new(future)
 }
-
-

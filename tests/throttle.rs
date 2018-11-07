@@ -1,12 +1,12 @@
 extern crate backblaze_b2;
+extern crate futures;
 extern crate tokio;
 extern crate tokio_io;
-extern crate futures;
 
-use tokio_io::io::AllowStdIo;
 use futures::stream::Stream;
 use futures::{future, Future};
 use std::sync::mpsc::channel;
+use tokio_io::io::AllowStdIo;
 
 use std::io::Cursor;
 use std::time::Instant;
@@ -33,11 +33,10 @@ where
 
 #[test]
 fn test_throttled_read() {
-
     use backblaze_b2::throttle::*;
 
     // create 20 megabytes
-    let mut data = Vec::with_capacity(1024*1024*20);
+    let mut data = Vec::with_capacity(1024 * 1024 * 20);
     for i in 0..data.capacity() {
         data.push(i as u8);
     }
@@ -51,9 +50,10 @@ fn test_throttled_read() {
     let now = Instant::now();
     let sum = run_future(
         throttled
-        .map_err(|_| ())
-        .fold(0, |sum, buf| future::ok(sum+buf.len()))
-    ).unwrap();
+            .map_err(|_| ())
+            .fold(0, |sum, buf| future::ok(sum + buf.len())),
+    )
+    .unwrap();
     assert_eq!(sum, len);
     let elapsed = now.elapsed();
     println!("Elapsed: {}", elapsed.as_secs());
@@ -61,11 +61,10 @@ fn test_throttled_read() {
 }
 #[test]
 fn test_throttled_async_read() {
-
     use backblaze_b2::throttle::async::*;
 
     // create 20 megabytes
-    let mut data1 = Vec::with_capacity(1024*1024*20);
+    let mut data1 = Vec::with_capacity(1024 * 1024 * 20);
     for i in 0..data1.capacity() {
         data1.push(i as u8);
     }
@@ -80,12 +79,14 @@ fn test_throttled_async_read() {
     // This means it will take at least four seconds to complete both.
     let throttle = Throttle::new((len / 2) as u64, 8192);
 
-    let read1 = throttle.throttle_read(cursor1)
+    let read1 = throttle
+        .throttle_read(cursor1)
         .map_err(|_| ())
-        .fold(0, |sum, buf| future::ok(sum+buf.len()));
-    let read2 = throttle.throttle_read(cursor2)
+        .fold(0, |sum, buf| future::ok(sum + buf.len()));
+    let read2 = throttle
+        .throttle_read(cursor2)
         .map_err(|_| ())
-        .fold(0, |sum, buf| future::ok(sum+buf.len()));
+        .fold(0, |sum, buf| future::ok(sum + buf.len()));
 
     let now = Instant::now();
     let (sum1, sum2) = run_future(read1.join(read2)).unwrap();

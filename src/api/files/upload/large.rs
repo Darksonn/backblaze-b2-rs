@@ -1,16 +1,16 @@
 //! Upload large files to backblaze.
 use serde_json::to_vec;
 
-use hyper::{Client, Request};
 use hyper::body::{Body, Payload};
 use hyper::client::connect::Connect;
+use hyper::{Client, Request};
 
 use bytes::Bytes;
 
-use crate::BytesString;
 use crate::api::authorize::B2Authorization;
 use crate::api::files::File;
 use crate::b2_future::B2Future;
+use crate::BytesString;
 
 use serde::ser::Serialize;
 
@@ -42,8 +42,7 @@ where
     C::Future: 'static,
     T: Serialize,
 {
-    let url_string: String =
-        format!("{}/b2api/v2/b2_start_large_file", auth.api_url);
+    let url_string: String = format!("{}/b2api/v2/b2_start_large_file", auth.api_url);
     let mut request = Request::post(url_string);
     request.header("Authorization", auth.auth_token());
 
@@ -67,8 +66,6 @@ where
 
     B2Future::new(future)
 }
-
-
 
 /// Create a new large file. This requires the `writeFiles` capability.
 ///
@@ -120,7 +117,7 @@ where
 /// The response of [`cancel_large_file`].
 ///
 /// [`cancel_large_file`]: fn.cancel_large_file.html
-#[derive(Deserialize,Serialize,Debug,PartialEq,Eq,Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelLargeFileResponse {
     pub file_id: String,
@@ -144,8 +141,10 @@ where
     C::Transport: 'static,
     C::Future: 'static,
 {
-    let url_string: String =
-        format!("{}/b2api/v2/b2_cancel_large_file?fileId={}", auth.api_url, file_id);
+    let url_string: String = format!(
+        "{}/b2api/v2/b2_cancel_large_file?fileId={}",
+        auth.api_url, file_id
+    );
     let mut request = Request::get(url_string);
     request.header("Authorization", auth.auth_token());
 
@@ -158,7 +157,6 @@ where
 
     B2Future::new(future)
 }
-
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -209,7 +207,6 @@ where
     B2Future::new(future)
 }
 
-
 /// The url to upload file parts to.
 ///
 /// Created by [`get_upload_part_url`]. Backblaze recomends not using the same upload url
@@ -241,8 +238,10 @@ where
     C::Transport: 'static,
     C::Future: 'static,
 {
-    let url_string: String =
-        format!("{}/b2api/v2/b2_get_upload_part_url?fileId={}", auth.api_url, file_id);
+    let url_string: String = format!(
+        "{}/b2api/v2/b2_get_upload_part_url?fileId={}",
+        auth.api_url, file_id
+    );
     let mut request = Request::get(url_string);
     request.header("Authorization", auth.auth_token());
 
@@ -259,7 +258,7 @@ where
 /// The response of [`upload_part`].
 ///
 /// [`upload_part`]: fn.upload_part.html
-#[derive(Deserialize,Serialize,Debug,PartialEq,Eq,Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadPartResponse {
     pub file_id: String,
@@ -305,7 +304,10 @@ where
     B::Data: Send,
 {
     let mut request = Request::post(Bytes::from(url.upload_url.clone()));
-    request.header("Authorization", Bytes::from(url.authorization_token.clone()));
+    request.header(
+        "Authorization",
+        Bytes::from(url.authorization_token.clone()),
+    );
     request.header("X-Bz-Part-Number", part_number);
     request.header("Content-Length", content_length);
     request.header("X-Bz-Content-Sha1", content_sha1);
@@ -319,7 +321,6 @@ where
 
     B2Future::new(future)
 }
-
 
 /// The return value of [`list_unfinished_large_files`].
 ///
@@ -358,7 +359,6 @@ struct ListUnfinishedLargeFilesRequest<'a> {
 
     max_file_count: usize,
 }
-
 
 /// Lists the unfinished large files in a bucket. Requires the `listFiles` capability.
 ///

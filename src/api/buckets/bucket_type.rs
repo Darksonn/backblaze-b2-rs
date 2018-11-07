@@ -1,11 +1,13 @@
-use std::fmt;
-use serde::de::{self, Visitor, Deserialize, Deserializer};
+use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, Serializer};
+use std::fmt;
 
 /// Specifies the type of a bucket on backblaze.
-#[derive(Debug,Clone,Copy,Eq,PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum BucketType {
-    Public, Private, Snapshot
+    Public,
+    Private,
+    Snapshot,
 }
 impl BucketType {
     /// Creates a `BucketType` from a string. The strings are the ones used by the
@@ -24,7 +26,7 @@ impl BucketType {
             "allPublic" => Some(BucketType::Public),
             "allPrivate" => Some(BucketType::Private),
             "snapshot" => Some(BucketType::Snapshot),
-            _ => None
+            _ => None,
         }
     }
     /// This function returns the string needed to specify the bucket type to the
@@ -33,7 +35,7 @@ impl BucketType {
         match self {
             BucketType::Public => "allPublic",
             BucketType::Private => "allPrivate",
-            BucketType::Snapshot => "snapshot"
+            BucketType::Snapshot => "snapshot",
         }
     }
 }
@@ -44,23 +46,28 @@ impl<'de> Visitor<'de> for BucketTypeVisitor {
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("allPublic, allPrivate or snapshot")
     }
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: de::Error {
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
         match BucketType::from_str(v) {
             None => Err(de::Error::unknown_variant(v, &BUCKET_TYPES)),
-            Some(v) => Ok(v)
+            Some(v) => Ok(v),
         }
     }
 }
 impl<'de> Deserialize<'de> for BucketType {
     fn deserialize<D>(deserializer: D) -> Result<BucketType, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(BucketTypeVisitor)
     }
 }
 impl Serialize for BucketType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_str())
     }

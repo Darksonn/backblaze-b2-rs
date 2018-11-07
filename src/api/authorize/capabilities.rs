@@ -1,9 +1,9 @@
-use serde::de::{self, Visitor, Deserialize, Error, Unexpected};
-use serde::ser::{Serialize, Serializer, SerializeSeq};
+use serde::de::{self, Deserialize, Error, Unexpected, Visitor};
+use serde::ser::{Serialize, SerializeSeq, Serializer};
 use std::fmt;
 
 /// The capabilities of a backblaze authorization.
-#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Capabilities {
     pub list_keys: bool,
     pub write_keys: bool,
@@ -52,11 +52,17 @@ impl Capabilities {
     }
     /// Returns the number of capabilities set to `true`.
     pub fn len(self) -> usize {
-        self.list_keys as usize + self.write_keys as usize + self.delete_keys as usize +
-            self.list_buckets as usize + self.write_buckets as usize + self.delete_buckets
-            as usize + self.list_files as usize + self.read_files as usize +
-            self.share_files as usize + self.write_files as usize + self.delete_files as
-            usize
+        self.list_keys as usize
+            + self.write_keys as usize
+            + self.delete_keys as usize
+            + self.list_buckets as usize
+            + self.write_buckets as usize
+            + self.delete_buckets as usize
+            + self.list_files as usize
+            + self.read_files as usize
+            + self.share_files as usize
+            + self.write_files as usize
+            + self.delete_files as usize
     }
 }
 
@@ -102,7 +108,8 @@ impl Serialize for Capabilities {
 
 impl<'de> Deserialize<'de> for Capabilities {
     fn deserialize<D>(deserializer: D) -> Result<Capabilities, D::Error>
-        where D: de::Deserializer<'de>,
+    where
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_seq(CapabilityVisitor)
     }
@@ -116,7 +123,8 @@ impl<'de> Visitor<'de> for CapabilityVisitor {
         write!(fmt, "A list of capabilties.")
     }
     fn visit_seq<A>(self, mut seq: A) -> Result<Capabilities, A::Error>
-        where A: de::SeqAccess<'de>
+    where
+        A: de::SeqAccess<'de>,
     {
         let mut res = Capabilities::none();
         while let Some(next) = seq.next_element::<&'de str>()? {

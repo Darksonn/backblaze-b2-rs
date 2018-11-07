@@ -1,12 +1,12 @@
 //! Utilities for handling streams of chunks.
 
 use bytes::Bytes;
-use futures::{Stream, Future, Poll, Async};
+use futures::{Async, Future, Poll, Stream};
+use tokio_codec::{BytesCodec, FramedRead};
 use tokio_io::{AsyncRead, AsyncWrite};
-use tokio_codec::{FramedRead, BytesCodec};
 
-use std::mem;
 use crate::B2Error;
+use std::mem;
 
 /// Turn an [`AsyncRead`] into a [`Stream`] of [`Bytes`].
 ///
@@ -51,7 +51,7 @@ impl<R: AsyncRead> Stream for Chunked<R> {
 /// [2]: fn.len_with_sha1.html
 pub fn sha1_at_end<S>(stream: S) -> Sha1AtEnd<S>
 where
-    S: Stream<Item = Bytes>
+    S: Stream<Item = Bytes>,
 {
     Sha1AtEnd {
         inner: stream,
@@ -78,7 +78,7 @@ pub struct Sha1AtEnd<S> {
 }
 impl<S> Stream for Sha1AtEnd<S>
 where
-    S: Stream<Item = Bytes>
+    S: Stream<Item = Bytes>,
 {
     type Item = Bytes;
     type Error = S::Error;
@@ -90,12 +90,12 @@ where
                 Ok(Async::Ready(Some(bytes))) => {
                     self.sha1.update(&bytes[..]);
                     Ok(Async::Ready(Some(bytes)))
-                },
+                }
                 Ok(Async::Ready(None)) => {
                     self.done = true;
                     let sha1_bytes = Bytes::from(self.sha1.hexdigest());
                     Ok(Async::Ready(Some(sha1_bytes)))
-                },
+                }
                 Ok(Async::NotReady) => Ok(Async::NotReady),
                 Err(err) => Err(err.into()),
             }
@@ -103,13 +103,12 @@ where
     }
 }
 
-
 /// Collect a chunked stream to a `Vec<u8>`.
 ///
 /// The internal vector will initially have a capacity of `size_hint`.
 pub fn collect_stream<S>(stream: S, size_hint: usize) -> Collect<S>
 where
-    S: Stream<Item = Bytes>
+    S: Stream<Item = Bytes>,
 {
     Collect {
         stream,
@@ -133,13 +132,11 @@ impl<S: Stream<Item = Bytes>> Future for Collect<S> {
     fn poll(&mut self) -> Poll<Vec<u8>, Self::Error> {
         loop {
             match self.stream.poll() {
-                Ok(Async::Ready(Some(chunk))) => {
-                    self.buf.extend_from_slice(&chunk[..])
-                },
+                Ok(Async::Ready(Some(chunk))) => self.buf.extend_from_slice(&chunk[..]),
                 Ok(Async::Ready(None)) => {
                     let buf = mem::replace(&mut self.buf, Vec::new());
                     return Ok(Async::Ready(buf));
-                },
+                }
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Err(err) => return Err(err),
             }
@@ -155,7 +152,7 @@ impl<S: Stream<Item = Bytes>> Future for Collect<S> {
 pub fn pipe<S, W>(stream: S, sink: W) -> StreamPipe<S, W>
 where
     S: Stream<Item = Bytes, Error = B2Error>,
-    W: AsyncWrite
+    W: AsyncWrite,
 {
     StreamPipe {
         from: stream,
@@ -181,11 +178,10 @@ pub struct StreamPipe<S, W> {
 impl<S, W> StreamPipe<S, W>
 where
     S: Stream<Item = Bytes, Error = B2Error>,
-    W: AsyncWrite
+    W: AsyncWrite,
 {
     #[inline]
-    fn push_chunk(&mut self, chunk: Bytes)
-    -> Result<Option<Bytes>, Poll<W, B2Error>> {
+    fn push_chunk(&mut self, chunk: Bytes) -> Result<Option<Bytes>, Poll<W, B2Error>> {
         match self.to.as_mut().unwrap().poll_write(&chunk[..]) {
             Ok(Async::Ready(len)) => {
                 if len < chunk.len() {
@@ -193,39 +189,31 @@ where
                 } else {
                     Ok(None)
                 }
-            },
+            }
             Ok(Async::NotReady) => {
                 self.chunk = Some(chunk);
                 Err(Ok(Async::NotReady))
-            },
+            }
             Err(err) => {
                 self.chunk = Some(chunk);
                 Err(Err(err.into()))
-            },
+            }
         }
     }
     #[inline]
     fn pull_chunk(&mut self) -> Result<Option<Bytes>, Poll<W, B2Error>> {
         match self.from.poll() {
-            Ok(Async::Ready(Some(chunk))) => {
-                self.push_chunk(chunk)
-            },
-            Ok(Async::Ready(None)) => {
-                Err(Ok(Async::Ready(self.to.take().unwrap())))
-            },
-            Ok(Async::NotReady) => {
-                Err(Ok(Async::NotReady))
-            },
-            Err(err) => {
-                Err(Err(err))
-            },
+            Ok(Async::Ready(Some(chunk))) => self.push_chunk(chunk),
+            Ok(Async::Ready(None)) => Err(Ok(Async::Ready(self.to.take().unwrap()))),
+            Ok(Async::NotReady) => Err(Ok(Async::NotReady)),
+            Err(err) => Err(Err(err)),
         }
     }
 }
 impl<S, W> Future for StreamPipe<S, W>
 where
     S: Stream<Item = Bytes, Error = B2Error>,
-    W: AsyncWrite
+    W: AsyncWrite,
 {
     type Item = W;
     type Error = B2Error;
@@ -238,13 +226,13 @@ where
                         Ok(a) => a,
                         Err(a) => return a,
                     }
-                },
+                }
                 None => {
                     mchunk = match self.pull_chunk() {
                         Ok(a) => a,
                         Err(a) => return a,
                     }
-                },
+                }
             }
         }
     }

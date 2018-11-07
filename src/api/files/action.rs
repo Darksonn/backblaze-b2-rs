@@ -1,9 +1,9 @@
-use std::fmt;
-use serde::de::{self, Visitor, Deserialize, Deserializer};
+use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, Serializer};
+use std::fmt;
 
 /// Specifies the type of a file on backblaze.
-#[derive(Debug,Clone,Copy,Eq,PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Action {
     /// Refers to a complete file uploaded to backblaze.
     Upload,
@@ -33,7 +33,7 @@ impl Action {
             "start" => Some(Action::Start),
             "hide" => Some(Action::Hide),
             "folder" => Some(Action::Folder),
-            _ => None
+            _ => None,
         }
     }
     /// This function returns the string needed to specify the action to the backblaze api.
@@ -53,23 +53,28 @@ impl<'de> Visitor<'de> for ActionVisitor {
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("upload, start, hide or folder")
     }
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: de::Error {
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
         match Action::from_str(v) {
             None => Err(de::Error::unknown_variant(v, &ACTIONS)),
-            Some(v) => Ok(v)
+            Some(v) => Ok(v),
         }
     }
 }
 impl<'de> Deserialize<'de> for Action {
     fn deserialize<D>(deserializer: D) -> Result<Action, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(ActionVisitor)
     }
 }
 impl Serialize for Action {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_str())
     }

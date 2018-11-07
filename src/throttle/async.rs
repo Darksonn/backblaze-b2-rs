@@ -5,21 +5,21 @@
 //! [`Throttle`]: struct.Throttle.html
 
 use futures::stream::Stream;
-use futures::{Poll, Async, Future};
+use futures::{Async, Future, Poll};
 
-use tokio::timer::Delay;
 use tokio::prelude::task;
-use tokio_codec::{FramedRead, BytesCodec};
+use tokio::timer::Delay;
+use tokio_codec::{BytesCodec, FramedRead};
 use tokio_io::AsyncRead;
 
 use bytes::Bytes;
 
 use std::cmp::min;
 use std::mem;
-use std::time::{Instant, Duration};
-use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::{Release, Acquire};
+use std::sync::atomic::Ordering::{Acquire, Release};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use throttle::saturating_u64_to_usize;
 
@@ -74,7 +74,7 @@ impl Throttle {
     /// other streams created on this `Throttle`.
     pub fn throttle_stream<S: Stream>(&self, stream: S) -> ThrottledStream<S>
     where
-        S::Item: Into<Bytes>
+        S::Item: Into<Bytes>,
     {
         ThrottledStream {
             tokens: self.default_bucket_size,
@@ -102,7 +102,7 @@ impl Throttle {
     pub fn throttle_read<R: AsyncRead>(&self, read: R) -> ThrottledRead<R> {
         let framed = FramedRead::new(read, BytesCodec::new());
         ThrottledRead {
-            inner: self.throttle_stream(framed)
+            inner: self.throttle_stream(framed),
         }
     }
 }
@@ -164,7 +164,7 @@ pub struct ThrottledStream<S> {
 }
 impl<S: Stream> ThrottledStream<S>
 where
-    S::Item: Into<Bytes>
+    S::Item: Into<Bytes>,
 {
     /// Set the rate that new tokens are gained at. Note that increasing this beyond the
     /// initial value will increase the overall bandwidth usage of the streams. A rate of
@@ -185,11 +185,14 @@ where
     #[inline]
     fn fill_tokens(&mut self, now: Instant) {
         let dur = now.duration_since(self.last_read);
-        let nanos = dur.as_secs().saturating_mul(1000000000u64)
+        let nanos = dur
+            .as_secs()
+            .saturating_mul(1000000000u64)
             .saturating_add(dur.subsec_nanos() as u64);
         let tokens_x_1000000000 = nanos.saturating_mul(self.rate);
         let tokens_all = tokens_x_1000000000 / 1000000000u64;
-        let tokens = saturating_u64_to_usize(tokens_all) / self.stream_count.load(Acquire);
+        let tokens =
+            saturating_u64_to_usize(tokens_all) / self.stream_count.load(Acquire);
         let new_tokens = self.tokens.saturating_add(tokens);
         self.tokens = min(self.bucket_size, new_tokens);
         self.last_read = now;
@@ -236,7 +239,7 @@ impl<S> Drop for ThrottledStream<S> {
 
 impl<S: Stream> Stream for ThrottledStream<S>
 where
-    S::Item: Into<Bytes>
+    S::Item: Into<Bytes>,
 {
     type Item = Bytes;
     type Error = S::Error;
@@ -262,8 +265,8 @@ where
             // Here we divide round up, preferring to wait a millisecond more than one too
             // few. Notice that if the numerator is zero this returns one. This is good as
             // we want to make sure the timeout isn't zero.
-            let millis = 1 + ((needed_tokens as u64).saturating_mul(1000u64) - 1)
-                             / self.rate;
+            let millis =
+                1 + ((needed_tokens as u64).saturating_mul(1000u64) - 1) / self.rate;
             let duration = Duration::from_millis(millis);
             let mut timeout = Delay::new(self.last_read + duration);
             match timeout.poll() {
@@ -274,7 +277,7 @@ where
                     // Refill the tokens and proceed as normal.
                     self.timeout = None;
                     self.fill_tokens(Instant::now());
-                },
+                }
                 Ok(Async::NotReady) => {
                     // Timeouts will notify the executor, but if it's dropped, the
                     // notification is cancelled.
@@ -284,7 +287,7 @@ where
                     self.timeout = Some(timeout);
                     self.next = Some(next);
                     return Ok(Async::NotReady);
-                },
+                }
                 Err(err) => {
                     self.next = Some(next);
                     if err.is_shutdown() {
@@ -295,7 +298,7 @@ where
                     } else {
                         panic!("Unknown timer error: {}", err);
                     }
-                },
+                }
             }
         }
         let (send, store) = self.cut_chunk(next);

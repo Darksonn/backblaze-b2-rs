@@ -7,9 +7,9 @@ use serde_json::to_vec;
 use hyper::body::Body;
 use hyper::client::connect::Connect;
 
-use crate::BytesString;
-use crate::api::authorize::{Capabilities, B2Credentials, B2Authorization};
+use crate::api::authorize::{B2Authorization, B2Credentials, Capabilities};
 use crate::b2_future::B2Future;
+use crate::BytesString;
 
 /// An authorization key with its secret application key.
 ///
@@ -54,15 +54,18 @@ impl KeyWithSecret {
     }
     /// Split this key into the key without the secret and the secret.
     pub fn without_secret(self) -> (Key, BytesString) {
-        (Key {
-            account_id: self.account_id,
-            key_name: self.key_name,
-            key_id: self.key_id,
-            capabilities: self.capabilities,
-            expiration_timestamp: self.expiration_timestamp,
-            bucket_id: self.bucket_id,
-            name_prefix: self.name_prefix,
-        }, self.application_key)
+        (
+            Key {
+                account_id: self.account_id,
+                key_name: self.key_name,
+                key_id: self.key_id,
+                capabilities: self.capabilities,
+                expiration_timestamp: self.expiration_timestamp,
+                bucket_id: self.bucket_id,
+                name_prefix: self.name_prefix,
+            },
+            self.application_key,
+        )
     }
 }
 impl Key {
@@ -149,8 +152,6 @@ where
     B2Future::new(future)
 }
 
-
-
 #[derive(Serialize)]
 struct DeleteKeyRequest<'a> {
     #[serde(rename = "applicationKeyId")]
@@ -176,9 +177,7 @@ where
     let mut request = Request::post(url_string);
     request.header("Authorization", auth.auth_token());
 
-    let body = match to_vec(&DeleteKeyRequest {
-        key_id,
-    }) {
+    let body = match to_vec(&DeleteKeyRequest { key_id }) {
         Ok(body) => body,
         Err(err) => return B2Future::err(err),
     };
@@ -193,8 +192,6 @@ where
 
     B2Future::new(future)
 }
-
-
 
 /// The return value of [`list_keys`].
 ///

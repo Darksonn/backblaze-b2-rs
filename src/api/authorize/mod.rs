@@ -10,29 +10,29 @@
 
 use std::fmt;
 
-use base64::{encode as b64encode};
+use base64::encode as b64encode;
+use futures::{Async, Future, Poll};
 use hyper::{Client, Request};
-use futures::{Poll, Future, Async};
 
 use hyper::body::Body;
 use hyper::client::connect::Connect;
 
 use bytes::Bytes;
-use serde::de::{Visitor, Deserialize, Deserializer, Error, SeqAccess, MapAccess};
+use serde::de::{Deserialize, Deserializer, Error, MapAccess, SeqAccess, Visitor};
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
 use crate::bytes_string::BytesString;
+use crate::B2Error;
 
-pub mod keys;
 mod capabilities;
+pub mod keys;
 
 pub use self::capabilities::Capabilities;
 
 /// The credentials needed to create a [`B2Authorization`].
 ///
 /// [`B2Authorization`]: struct.B2Authorization.html
-#[derive(Debug,Clone,Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct B2Credentials {
     pub id: BytesString,
     pub key: BytesString,
@@ -44,7 +44,7 @@ impl B2Credentials {
         let buffer = Bytes::from(format!("{}:{}", id, key));
         let auth_string = Bytes::from(format!("Basic {}", b64encode(&buffer[..])));
         let id = buffer.slice(0, id.len());
-        let key = buffer.slice_from(id.len()+1);
+        let key = buffer.slice_from(id.len() + 1);
         B2Credentials {
             id: BytesString::new(id).unwrap(),
             key: BytesString::new(key).unwrap(),
@@ -74,20 +74,22 @@ impl B2Credentials {
 ///  [`B2Error`]: ../../enum.B2Error.html
 pub fn authorize<C>(creds: &B2Credentials, client: &Client<C, Body>) -> B2AuthFuture
 where
-C: Connect + Sync + 'static,
-C::Transport: 'static,
-C::Future: 'static,
+    C: Connect + Sync + 'static,
+    C::Transport: 'static,
+    C::Future: 'static,
 {
-    let mut request = Request::get(
-        "https://api.backblazeb2.com/b2api/v2/b2_authorize_account");
+    let mut request =
+        Request::get("https://api.backblazeb2.com/b2api/v2/b2_authorize_account");
     request.header("Authorization", creds.auth_string.clone());
 
     let request = match request.body(Body::empty()) {
         Ok(req) => req,
-        Err(err) => return B2AuthFuture {
-            future: B2Future::err(err),
-            id: creds.id.clone(),
-        },
+        Err(err) => {
+            return B2AuthFuture {
+                future: B2Future::err(err),
+                id: creds.id.clone(),
+            }
+        }
     };
 
     let future = client.request(request);
@@ -113,7 +115,7 @@ struct B2AuthResponse {
 ///
 /// If the bucket is set, the authorization can only access that bucket, and if
 /// `name_prefix` is set, it can only access files with that prefix.
-#[derive(Deserialize,Clone,Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Allowed {
     pub capabilities: Capabilities,
@@ -139,12 +141,17 @@ impl Future for B2AuthFuture {
         match self.future.poll() {
             Ok(Async::Ready(response)) => {
                 if self.id == response.account_id {
-                    Ok(Async::Ready(B2Authorization::from(self.id.clone(), response)))
+                    Ok(Async::Ready(B2Authorization::from(
+                        self.id.clone(),
+                        response,
+                    )))
                 } else {
-                    Ok(Async::Ready(B2Authorization::from(response.account_id.clone(),
-                    response)))
+                    Ok(Async::Ready(B2Authorization::from(
+                        response.account_id.clone(),
+                        response,
+                    )))
                 }
-            },
+            }
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Err(err) => Err(err),
         }
@@ -158,7 +165,7 @@ impl Future for B2AuthFuture {
 ///
 /// [`authorize`]: fn.authorize.html
 ///  [`B2Credentials`]: struct.B2Credentials.html
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct B2Authorization {
     pub account_id: BytesString,
     pub authorization_token: BytesString,
@@ -188,7 +195,10 @@ impl B2Authorization {
 struct B2CredentialsVisitor;
 #[derive(Deserialize)]
 #[serde(field_identifier, rename_all = "lowercase")]
-enum B2CredentialsField { Id, Key }
+enum B2CredentialsField {
+    Id,
+    Key,
+}
 
 impl<'de> Visitor<'de> for B2CredentialsVisitor {
     type Value = B2Credentials;
@@ -201,9 +211,11 @@ impl<'de> Visitor<'de> for B2CredentialsVisitor {
     where
         V: SeqAccess<'de>,
     {
-        let id = seq.next_element()?
+        let id = seq
+            .next_element()?
             .ok_or_else(|| Error::invalid_length(0, &self))?;
-        let key = seq.next_element()?
+        let key = seq
+            .next_element()?
             .ok_or_else(|| Error::invalid_length(1, &self))?;
         Ok(B2Credentials::new(id, key))
     }
@@ -244,4 +256,3 @@ impl<'de> Deserialize<'de> for B2Credentials {
         deserializer.deserialize_struct("B2Credentials", FIELDS, B2CredentialsVisitor)
     }
 }
-

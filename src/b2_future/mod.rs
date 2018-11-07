@@ -1,13 +1,13 @@
 //! Futures that parse the `ResponseFuture` returned from hyper.
 
-use hyper::{client::ResponseFuture, Body};
-use futures::{Poll, Future, Async, Stream};
+use futures::{Async, Future, Poll, Stream};
 use http::response::Parts;
 use http::StatusCode;
+use hyper::{client::ResponseFuture, Body};
 use serde::Deserialize;
 
-use std::mem;
 use std::marker::PhantomData;
+use std::mem;
 
 use crate::B2Error;
 
@@ -33,7 +33,8 @@ unsafe impl<T> Sync for State<T> {}
 unsafe impl<T> Send for State<T> {}
 
 impl<T> B2Future<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     /// Create a new `B2Future`.
     pub fn new(resp: ResponseFuture) -> Self {
@@ -49,7 +50,8 @@ impl<T> B2Future<T>
     }
 }
 impl<T> Future for B2Future<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     type Item = T;
     type Error = B2Error;
@@ -62,8 +64,8 @@ impl<T> Future for B2Future<T>
                 Action::Done(poll) => {
                     self.state = state;
                     return poll;
-                },
-                Action::Again() => { },
+                }
+                Action::Again() => {}
             }
         }
     }
@@ -75,7 +77,8 @@ enum Action<T> {
 }
 
 impl<T> State<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     #[inline]
     fn done() -> Self {
@@ -84,75 +87,51 @@ impl<T> State<T>
     #[inline]
     fn poll(self) -> (State<T>, Action<T>) {
         match self {
-            State::Connecting(mut fut) => {
-                match fut.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::Connecting(fut),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
-                    Ok(Async::Ready(resp)) => {
-                        let (parts, body) = resp.into_parts();
-                        let size = crate::get_content_length(&parts);
-                        (State::Collecting(parts, body, Vec::with_capacity(size)),
-                        Action::Again())
-                    },
-                    Err(e) => {
-                        (State::done(),
-                        Action::Done(Err(e.into())))
-                    },
+            State::Connecting(mut fut) => match fut.poll() {
+                Ok(Async::NotReady) => {
+                    (State::Connecting(fut), Action::Done(Ok(Async::NotReady)))
                 }
-            }
-            State::Collecting(parts, mut body, mut bytes) => {
-                match body.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::Collecting(parts, body, bytes),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
-                    Ok(Async::Ready(Some(chunk))) => {
-                        bytes.extend(&chunk[..]);
-                        (State::Collecting(parts, body, bytes),
-                        Action::Again())
-                    },
-                    Ok(Async::Ready(None)) => {
-                        if parts.status == StatusCode::OK {
-                            match ::serde_json::from_slice(&bytes) {
-                                Ok(t) => {
-                                    (State::done(),
-                                    Action::Done(Ok(Async::Ready(t))))
-                                },
-                                Err(e) => {
-                                    (State::done(),
-                                    Action::Done(Err(e.into())))
-                                },
-                            }
-                        } else {
-                            match ::serde_json::from_slice(&bytes) {
-                                Ok(err_msg) => {
-                                    let err = B2Error::B2Error (
-                                        parts.status, err_msg
-                                    );
-                                    (State::done(),
-                                    Action::Done(Err(err)))
-                                },
-                                Err(e) => {
-                                    (State::done(),
-                                    Action::Done(Err(e.into())))
-                                },
-                            }
+                Ok(Async::Ready(resp)) => {
+                    let (parts, body) = resp.into_parts();
+                    let size = crate::get_content_length(&parts);
+                    (
+                        State::Collecting(parts, body, Vec::with_capacity(size)),
+                        Action::Again(),
+                    )
+                }
+                Err(e) => (State::done(), Action::Done(Err(e.into()))),
+            },
+            State::Collecting(parts, mut body, mut bytes) => match body.poll() {
+                Ok(Async::NotReady) => (
+                    State::Collecting(parts, body, bytes),
+                    Action::Done(Ok(Async::NotReady)),
+                ),
+                Ok(Async::Ready(Some(chunk))) => {
+                    bytes.extend(&chunk[..]);
+                    (State::Collecting(parts, body, bytes), Action::Again())
+                }
+                Ok(Async::Ready(None)) => {
+                    if parts.status == StatusCode::OK {
+                        match ::serde_json::from_slice(&bytes) {
+                            Ok(t) => (State::done(), Action::Done(Ok(Async::Ready(t)))),
+                            Err(e) => (State::done(), Action::Done(Err(e.into()))),
                         }
-                    },
-                    Err(e) => {
-                        (State::done(), Action::Done(Err(e.into())))
-                    },
+                    } else {
+                        match ::serde_json::from_slice(&bytes) {
+                            Ok(err_msg) => {
+                                let err = B2Error::B2Error(parts.status, err_msg);
+                                (State::done(), Action::Done(Err(err)))
+                            }
+                            Err(e) => (State::done(), Action::Done(Err(e.into()))),
+                        }
+                    }
                 }
-            }
-            State::FailImmediately(err) => {
-                (State::done(), Action::Done(Err(err)))
-            }
+                Err(e) => (State::done(), Action::Done(Err(e.into()))),
+            },
+            State::FailImmediately(err) => (State::done(), Action::Done(Err(err))),
             State::Done(_) => {
                 panic!("poll on finished backblaze_b2::b2_future::B2Future");
             }
         }
     }
 }
-

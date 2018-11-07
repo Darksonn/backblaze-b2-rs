@@ -1,15 +1,15 @@
-use hyper::{client::ResponseFuture, Body};
-use futures::{Poll, Future, Async, Stream};
+use bytes::Bytes;
+use futures::{Async, Future, Poll, Stream};
 use http::response::Parts;
 use http::StatusCode;
-use bytes::Bytes;
+use hyper::{client::ResponseFuture, Body};
 use serde::Deserialize;
-use serde_json::{from_slice, from_reader};
+use serde_json::{from_reader, from_slice};
 
-use std::mem;
-use std::marker::PhantomData;
 use std::collections::VecDeque;
-use std::io::{Read, Cursor};
+use std::io::{Cursor, Read};
+use std::marker::PhantomData;
+use std::mem;
 
 use B2Error;
 
@@ -36,7 +36,8 @@ unsafe impl<T> Sync for State<T> {}
 unsafe impl<T> Send for State<T> {}
 
 impl<T> B2Stream<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     /// Create a new `B2Stream`. The `capacity` is the initial size of the allocation
     /// meant to hold the body of the response.
@@ -62,7 +63,8 @@ impl<T> B2Stream<T>
     }
 }
 impl<T> Stream for B2Stream<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     type Item = T;
     type Error = B2Error;
@@ -75,8 +77,8 @@ impl<T> Stream for B2Stream<T>
                 Action::Done(poll) => {
                     self.state = state;
                     return poll;
-                },
-                Action::Again() => { },
+                }
+                Action::Again() => {}
             }
         }
     }
@@ -88,101 +90,79 @@ enum Action<T> {
 }
 
 impl<T> State<T>
-    where for<'de> T: Deserialize<'de>
+where
+    for<'de> T: Deserialize<'de>,
 {
     #[inline]
     fn poll(self, cap: usize, level: u32) -> (State<T>, Action<T>) {
         match self {
-            State::Connecting(mut fut) => {
-                match fut.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::Connecting(fut),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
-                    Ok(Async::Ready(resp)) => {
-                        let (parts, body) = resp.into_parts();
-                        if parts.status == StatusCode::OK {
-                            (State::Collecting(body, PartialJson::new(cap, level)),
-                            Action::Again())
-                        } else {
-                            let size = crate::get_content_length(&parts);
-                            (State::CollectingError(parts, body, Vec::with_capacity(size)),
-                            Action::Again())
-                        }
-                    },
-                    Err(e) => {
-                        (State::Done(),
-                        Action::Done(Err(e.into())))
-                    },
+            State::Connecting(mut fut) => match fut.poll() {
+                Ok(Async::NotReady) => {
+                    (State::Connecting(fut), Action::Done(Ok(Async::NotReady)))
                 }
-            }
-            State::Collecting(mut body, mut partial) => {
-                match partial.next() {
-                    Ok(Some(value)) => {
-                        (State::Collecting(body, partial),
-                        Action::Done(Ok(Async::Ready(Some(value)))))
-                    },
-                    Ok(None) => match body.poll() {
-                        Ok(Async::NotReady) => {
-                            (State::Collecting(body, partial),
-                            Action::Done(Ok(Async::NotReady)))
-                        },
-                        Ok(Async::Ready(Some(chunk))) => {
-                            partial.push(chunk.into());
-                            (State::Collecting(body, partial),
-                            Action::Again())
-                        },
-                        Ok(Async::Ready(None)) => {
-                            (State::Done(), Action::Done(Ok(Async::Ready(None))))
-                        },
-                        Err(e) => {
-                            (State::Done(), Action::Done(Err(e.into())))
-                        },
-                    },
-                    Err(e) => {
-                        (State::Done(), Action::Done(Err(e.into())))
-                    },
+                Ok(Async::Ready(resp)) => {
+                    let (parts, body) = resp.into_parts();
+                    if parts.status == StatusCode::OK {
+                        (
+                            State::Collecting(body, PartialJson::new(cap, level)),
+                            Action::Again(),
+                        )
+                    } else {
+                        let size = crate::get_content_length(&parts);
+                        (
+                            State::CollectingError(parts, body, Vec::with_capacity(size)),
+                            Action::Again(),
+                        )
+                    }
                 }
+                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
             },
-            State::CollectingError(parts, mut body, mut bytes) => {
-                match body.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::CollectingError(parts, body, bytes),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
+            State::Collecting(mut body, mut partial) => match partial.next() {
+                Ok(Some(value)) => (
+                    State::Collecting(body, partial),
+                    Action::Done(Ok(Async::Ready(Some(value)))),
+                ),
+                Ok(None) => match body.poll() {
+                    Ok(Async::NotReady) => (
+                        State::Collecting(body, partial),
+                        Action::Done(Ok(Async::NotReady)),
+                    ),
                     Ok(Async::Ready(Some(chunk))) => {
-                        bytes.extend(&chunk[..]);
-                        (State::CollectingError(parts, body, bytes),
-                        Action::Again())
-                    },
+                        partial.push(chunk.into());
+                        (State::Collecting(body, partial), Action::Again())
+                    }
                     Ok(Async::Ready(None)) => {
-                        match from_slice(&bytes) {
-                            Ok(err_msg) => {
-                                let err = B2Error::B2Error(parts.status, err_msg);
-                                (State::Done(), Action::Done(Err(err)))
-                            },
-                            Err(e) => {
-                                (State::Done(), Action::Done(Err(e.into())))
-                            },
-                        }
-                    },
-                    Err(e) => {
-                        (State::Done(), Action::Done(Err(e.into())))
-                    },
+                        (State::Done(), Action::Done(Ok(Async::Ready(None))))
+                    }
+                    Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+                },
+                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+            },
+            State::CollectingError(parts, mut body, mut bytes) => match body.poll() {
+                Ok(Async::NotReady) => (
+                    State::CollectingError(parts, body, bytes),
+                    Action::Done(Ok(Async::NotReady)),
+                ),
+                Ok(Async::Ready(Some(chunk))) => {
+                    bytes.extend(&chunk[..]);
+                    (State::CollectingError(parts, body, bytes), Action::Again())
                 }
+                Ok(Async::Ready(None)) => match from_slice(&bytes) {
+                    Ok(err_msg) => {
+                        let err = B2Error::B2Error(parts.status, err_msg);
+                        (State::Done(), Action::Done(Err(err)))
+                    }
+                    Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+                },
+                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
             },
-            State::FailImmediately(err) => {
-                (State::Done(), Action::Done(Err(err)))
-            },
+            State::FailImmediately(err) => (State::Done(), Action::Done(Err(err))),
             State::Done() => {
                 panic!("poll on finished backblaze_b2::b2_stream::B2Stream");
-            },
+            }
         }
     }
 }
-
-
-
 
 struct PartialJson<T> {
     buffer: VecDeque<u8>,
@@ -196,7 +176,7 @@ struct PartialJson<T> {
 }
 impl<T> PartialJson<T>
 where
-    for<'de> T: Deserialize<'de>
+    for<'de> T: Deserialize<'de>,
 {
     fn new(size: usize, level: u32) -> Self {
         PartialJson {
@@ -219,8 +199,8 @@ where
             let (first, second) = self.buffer.as_slices();
             if first.len() < i {
                 from_reader(
-                    Cursor::new(first)
-                    .chain(Cursor::new(&second[0..i-first.len()])))
+                    Cursor::new(first).chain(Cursor::new(&second[0..i - first.len()])),
+                )
             } else {
                 from_slice(&first[0..i])
             }
@@ -255,46 +235,46 @@ where
                     '[' => {
                         self.parens += 1;
                         self.last_was_start = self.parens == self.level;
-                    },
+                    }
                     '{' => {
                         self.parens += 1;
                         self.last_was_start = self.parens == self.level;
-                    },
+                    }
                     ',' => {
                         self.last_was_start = false;
                         if self.parens == self.level {
                             return Ok(Some(self.next_value()?));
                         }
-                    },
+                    }
                     '"' => {
                         self.last_was_start = false;
                         self.in_string = true;
-                    },
+                    }
                     ']' => {
                         if self.parens == 0 {
-                            return Err(B2Error::api("Invalid json"))
+                            return Err(B2Error::api("Invalid json"));
                         }
                         self.parens -= 1;
                         if self.parens == self.level - 1 && !self.last_was_start {
                             return Ok(Some(self.next_value()?));
                         }
                         self.last_was_start = false;
-                    },
+                    }
                     '}' => {
                         if self.parens == 0 {
-                            return Err(B2Error::api("Invalid json"))
+                            return Err(B2Error::api("Invalid json"));
                         }
                         self.parens -= 1;
                         if self.parens == self.level - 1 && !self.last_was_start {
                             return Ok(Some(self.next_value()?));
                         }
                         self.last_was_start = false;
-                    },
+                    }
                     other => {
                         if !other.is_whitespace() {
                             self.last_was_start = false;
                         }
-                    },
+                    }
                 }
             }
         }
@@ -331,7 +311,7 @@ mod tests {
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
-            assert_eq!(res, [vec![1,2,3],vec![1,2,3],vec![3,2,1]]);
+            assert_eq!(res, [vec![1, 2, 3], vec![1, 2, 3], vec![3, 2, 1]]);
         }
     }
     #[test]

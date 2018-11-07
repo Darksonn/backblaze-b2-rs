@@ -6,17 +6,17 @@
 //! [`stream_util`]: ../../stream_util/index.html
 use serde_json::to_vec;
 
-use hyper::{Client, Request};
 use hyper::body::Body;
 use hyper::client::connect::Connect;
+use hyper::{Client, Request};
 use percent_encoding::*;
 
 use bytes::Bytes;
-use futures::{Poll, Future, Async};
+use futures::{Async, Future, Poll};
 
-use crate::{BytesString, B2Error};
 use crate::api::authorize::B2Authorization;
 use crate::b2_future::B2Future;
+use crate::{B2Error, BytesString};
 
 //pub mod large;
 mod future;
@@ -60,7 +60,8 @@ impl PublicDownloadAuthorization {
     /// Create a download authorization for public buckets. Please note that the download
     /// url varies from backblaze account to account.
     pub fn new<I>(download_url: I) -> PublicDownloadAuthorization
-    where I: Into<BytesString>
+    where
+        I: Into<BytesString>,
     {
         PublicDownloadAuthorization {
             download_url: download_url.into(),
@@ -188,7 +189,7 @@ impl Future for DownloadAuthFuture {
         match self.future.poll() {
             Ok(Async::Ready(response)) => {
                 Ok(Async::Ready(response.merge(self.url.clone())))
-            },
+            }
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Err(err) => Err(err),
         }
@@ -237,19 +238,23 @@ where
         b2_content_disposition,
     }) {
         Ok(body) => body,
-        Err(err) => return DownloadAuthFuture {
-            future: B2Future::err(err),
-            url: auth.download_url.clone(),
-        },
+        Err(err) => {
+            return DownloadAuthFuture {
+                future: B2Future::err(err),
+                url: auth.download_url.clone(),
+            }
+        }
     };
     let body = Body::from(body);
 
     let request = match request.body(body) {
         Ok(req) => req,
-        Err(err) => return DownloadAuthFuture {
-            future: B2Future::err(err),
-            url: auth.download_url.clone(),
-        },
+        Err(err) => {
+            return DownloadAuthFuture {
+                future: B2Future::err(err),
+                url: auth.download_url.clone(),
+            }
+        }
     };
 
     let future = client.request(request);
@@ -280,10 +285,11 @@ where
     C::Transport: 'static,
     C::Future: 'static,
 {
-    let url_string: String =
-        format!("{}/b2api/v2/b2_download_file_by_id?fileId={}",
-                auth.download_url(),
-                encode_file(file_id));
+    let url_string: String = format!(
+        "{}/b2api/v2/b2_download_file_by_id?fileId={}",
+        auth.download_url(),
+        encode_file(file_id)
+    );
     let mut request = Request::get(url_string);
     if let Some(token) = auth.authorization_header() {
         request.header("Authorization", token);
@@ -322,9 +328,12 @@ where
     C::Transport: 'static,
     C::Future: 'static,
 {
-    let url_string: String =
-        format!("{}/file/{}/{}", auth.download_url(),
-        encode_bucket(bucket_name), encode_file(file_name));
+    let url_string: String = format!(
+        "{}/file/{}/{}",
+        auth.download_url(),
+        encode_bucket(bucket_name),
+        encode_file(file_name)
+    );
     let mut request = Request::get(url_string);
     if let Some(token) = auth.authorization_header() {
         request.header("Authorization", token);
@@ -359,26 +368,28 @@ where
 pub fn download_by_name_url<Auth>(
     auth: &Auth,
     bucket_name: &str,
-    file_name: &str
-) -> String where Auth: CanAuthorizeNameDownload {
+    file_name: &str,
+) -> String
+where
+    Auth: CanAuthorizeNameDownload,
+{
     let url = auth.download_url();
     match auth.authorization_header() {
-        None => {
-            format!("{}/file/{}/{}",
-                    url,
-                    encode_bucket(bucket_name),
-                    encode_file(file_name))
-        },
-        Some(auth) => {
-            format!("{}/file/{}/{}?Authorization={}",
-                    url,
-                    encode_bucket(bucket_name),
-                    encode_file(file_name),
-                    encode_query(&auth[..]))
-        },
+        None => format!(
+            "{}/file/{}/{}",
+            url,
+            encode_bucket(bucket_name),
+            encode_file(file_name)
+        ),
+        Some(auth) => format!(
+            "{}/file/{}/{}?Authorization={}",
+            url,
+            encode_bucket(bucket_name),
+            encode_file(file_name),
+            encode_query(&auth[..])
+        ),
     }
 }
-
 
 /// Create the url needed to download the specified file.
 ///
@@ -391,22 +402,22 @@ pub fn download_by_name_url<Auth>(
 /// [`PublicDownloadAuthorization`].
 ///
 /// [`PublicDownloadAuthorization`]: struct.PublicDownloadAuthorization.html
-pub fn download_by_id_url<Auth>(
-    auth: &Auth,
-    file_id: &str
-) -> String where Auth: CanAuthorizeIdDownload {
+pub fn download_by_id_url<Auth>(auth: &Auth, file_id: &str) -> String
+where
+    Auth: CanAuthorizeIdDownload,
+{
     let url = auth.download_url();
     match auth.authorization_header() {
-        None => {
-            format!("{}/b2api/v2/b2_download_file_by_id?fileId={}",
-                    url,
-                    utf8_percent_encode(file_id, QUERY_ENCODE_SET))
-        },
-        Some(auth) => {
-            format!("{}/b2api/v2/b2_download_file_by_id?fileId={}&Authorization={}",
-                    url,
-                    utf8_percent_encode(file_id, QUERY_ENCODE_SET),
-                    encode_query(&auth[..]))
-        },
+        None => format!(
+            "{}/b2api/v2/b2_download_file_by_id?fileId={}",
+            url,
+            utf8_percent_encode(file_id, QUERY_ENCODE_SET)
+        ),
+        Some(auth) => format!(
+            "{}/b2api/v2/b2_download_file_by_id?fileId={}&Authorization={}",
+            url,
+            utf8_percent_encode(file_id, QUERY_ENCODE_SET),
+            encode_query(&auth[..])
+        ),
     }
 }

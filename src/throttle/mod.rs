@@ -4,17 +4,17 @@
 //! [`AsyncRead`]: https://docs.rs/tokio-io/0.1/tokio_io/trait.AsyncRead.html
 
 use futures::stream::Stream;
-use futures::{Poll, Async, Future};
+use futures::{Async, Future, Poll};
 
-use tokio::timer::Delay;
 use tokio::prelude::task;
-use tokio_codec::{FramedRead, BytesCodec};
+use tokio::timer::Delay;
+use tokio_codec::{BytesCodec, FramedRead};
 use tokio_io::AsyncRead;
 
 use bytes::Bytes;
 
 use std::cmp::min;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub mod async;
 
@@ -45,7 +45,7 @@ impl<R: AsyncRead> ThrottledRead<R> {
     pub fn new(read: R, bucket_size: usize, rate: u64) -> Self {
         let framed = FramedRead::new(read, BytesCodec::new());
         ThrottledRead {
-            inner: ThrottledStream::new(framed, bucket_size, rate)
+            inner: ThrottledStream::new(framed, bucket_size, rate),
         }
     }
     /// Set the rate that new tokens are gained at. A rate of zero indicates that no
@@ -97,7 +97,7 @@ pub struct ThrottledStream<S> {
 }
 impl<S: Stream> ThrottledStream<S>
 where
-    S::Item: Into<Bytes>
+    S::Item: Into<Bytes>,
 {
     /// Create a new `ThrottledStream`. This method requires that `bucket_size` is at
     /// least 1024.
@@ -138,7 +138,9 @@ where
     #[inline]
     fn fill_tokens(&mut self, now: Instant) {
         let dur = now.duration_since(self.last_read);
-        let nanos = dur.as_secs().saturating_mul(1000000000u64)
+        let nanos = dur
+            .as_secs()
+            .saturating_mul(1000000000u64)
             .saturating_add(dur.subsec_nanos() as u64);
         let tokens_x_1000000000 = nanos.saturating_mul(self.rate);
         let tokens = tokens_x_1000000000 / 1000000000u64;
@@ -171,7 +173,7 @@ fn saturating_u64_to_usize(i: u64) -> usize {
 
 impl<S: Stream> Stream for ThrottledStream<S>
 where
-    S::Item: Into<Bytes>
+    S::Item: Into<Bytes>,
 {
     type Item = Bytes;
     type Error = S::Error;
@@ -195,8 +197,8 @@ where
             // Here we divide round up, preferring to wait a millisecond more than one too
             // few. Notice that if the numerator is zero this returns one. This is good as
             // we want to make sure the timeout isn't zero.
-            let millis = 1 + ((needed_tokens as u64).saturating_mul(1000u64) - 1)
-                             / self.rate;
+            let millis =
+                1 + ((needed_tokens as u64).saturating_mul(1000u64) - 1) / self.rate;
             let duration = Duration::from_millis(millis);
             let mut timeout = Delay::new(self.last_read + duration);
             match timeout.poll() {
@@ -207,7 +209,7 @@ where
                     // Refill the tokens and proceed as normal.
                     self.timeout = None;
                     self.fill_tokens(Instant::now());
-                },
+                }
                 Ok(Async::NotReady) => {
                     // Timeouts will notify the executor, but if it's dropped, the
                     // notification is cancelled.
@@ -217,7 +219,7 @@ where
                     self.timeout = Some(timeout);
                     self.next = Some(next);
                     return Ok(Async::NotReady);
-                },
+                }
                 Err(err) => {
                     self.next = Some(next);
                     if err.is_shutdown() {
@@ -228,7 +230,7 @@ where
                     } else {
                         panic!("Unknown timer error: {}", err);
                     }
-                },
+                }
             }
         }
         let (send, store) = self.cut_chunk(next);

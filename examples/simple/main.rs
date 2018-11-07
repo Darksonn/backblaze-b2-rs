@@ -1,27 +1,27 @@
 extern crate backblaze_b2;
-extern crate hyper;
-extern crate serde_json;
 extern crate futures;
+extern crate hyper;
 extern crate hyper_tls;
-extern crate tokio_io;
-extern crate tokio;
 extern crate rand;
+extern crate serde_json;
+extern crate tokio;
+extern crate tokio_io;
 
+use futures::future::Future;
 use hyper::body::Body;
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
-use futures::future::Future;
 use std::env;
 use std::path::PathBuf;
 
+use tokio::fs::File as TokioFile;
 use tokio::runtime::Runtime;
-use tokio::fs::{File as TokioFile};
 
-use backblaze_b2::B2Error;
-use backblaze_b2::stream_util;
-use backblaze_b2::api::authorize::{self, B2Credentials, B2Authorization};
+use backblaze_b2::api::authorize::{self, B2Authorization, B2Credentials};
 use backblaze_b2::api::buckets::{self, BucketType};
 use backblaze_b2::api::files::{self, upload, File as B2File};
+use backblaze_b2::stream_util;
+use backblaze_b2::B2Error;
 
 // When using this library you probably want to use this Client.
 type Client = hyper::client::Client<HttpsConnector<HttpConnector>, Body>;
@@ -82,7 +82,9 @@ fn upload_file(
     // fails, but the backblaze functions return a B2Error. The problem is that to join
     // the futures they need the same error type, and we will later join file_future with
     // something where the error type is B2Error.
-    let file_future = open_future.join(metadata_future).map_err(|err| B2Error::from(err));
+    let file_future = open_future
+        .join(metadata_future)
+        .map_err(|err| B2Error::from(err));
 
     // We also need the url that we're uploading to.
     //
@@ -102,7 +104,11 @@ fn upload_file(
         // Extract the file name from the path.
         let file_name = file_location.file_name().unwrap().to_str().unwrap();
 
-        println!("Starting upload of {} containing {} bytes.", file_name, metadata.len());
+        println!(
+            "Starting upload of {} containing {} bytes.",
+            file_name,
+            metadata.len()
+        );
 
         // We need to prepare the file for the upload function first.
         // This can be done like this:
@@ -119,16 +125,15 @@ fn upload_file(
             "hex_digits_at_end",
             None,
             None,
-        ).map(|file| {
+        )
+        .map(|file| {
             println!("Upload of {} done.", &file.file_name);
             file
         })
     })
 }
 
-
 fn main() -> Result<(), Box<std::error::Error>> {
-
     // Here we use a multi threaded runtime.
     // Often using a single threaded runtime instead would be fine.
     let mut runtime = Runtime::new().unwrap();
@@ -157,48 +162,29 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let bucket = runtime.block_on(bucket_future)?;
     println!("Bucket created");
 
-
-
     // Let's upload the two files in this example.
     let file1_path = get_text_file()?;
     let file2_path = get_image_file()?;
 
     // We use the upload function defined earlier, which creates a future that completes
     // when the file has been uploaded.
-    let file1_upload_future = upload_file(
-        auth.clone(),
-        client.clone(),
-        file1_path,
-        &bucket.bucket_id
-    );
-    let file2_upload_future = upload_file(
-        auth.clone(),
-        client.clone(),
-        file2_path,
-        &bucket.bucket_id
-    );
+    let file1_upload_future =
+        upload_file(auth.clone(), client.clone(), file1_path, &bucket.bucket_id);
+    let file2_upload_future =
+        upload_file(auth.clone(), client.clone(), file2_path, &bucket.bucket_id);
     // Perform both futures at the same time.
-    let (file1, file2) = runtime.block_on(file1_upload_future.join(file2_upload_future))?;
-
-
+    let (file1, file2) =
+        runtime.block_on(file1_upload_future.join(file2_upload_future))?;
 
     // Let's delete the files again.
-    let delete1_future = files::delete_file(
-        &auth,
-        &client,
-        &file1.file_id,
-        &file1.file_name,
-    ).map(|file| println!("Deleted {}.", file.file_name));
-    let delete2_future = files::delete_file(
-        &auth,
-        &client,
-        &file2.file_id,
-        &file2.file_name,
-    ).map(|file| println!("Deleted {}.", file.file_name));
+    let delete1_future =
+        files::delete_file(&auth, &client, &file1.file_id, &file1.file_name)
+            .map(|file| println!("Deleted {}.", file.file_name));
+    let delete2_future =
+        files::delete_file(&auth, &client, &file2.file_id, &file2.file_name)
+            .map(|file| println!("Deleted {}.", file.file_name));
     // Delete them at the same time.
     runtime.block_on(delete1_future.join(delete2_future))?;
-
-
 
     // Delete the bucket again.
     let delete_future = buckets::delete_bucket(&auth, &client, &bucket.bucket_id);
@@ -214,4 +200,3 @@ fn main() -> Result<(), Box<std::error::Error>> {
     println!("Done!");
     Ok(())
 }
-

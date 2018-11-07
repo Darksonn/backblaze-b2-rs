@@ -1,14 +1,14 @@
-use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
-use std::fmt;
 use bytes::Bytes;
+use std::fmt;
+use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
 
+use serde::de::{Deserialize, Deserializer, Error, Unexpected, Visitor};
 use serde::ser::{Serialize, Serializer};
-use serde::de::{Visitor, Deserialize, Deserializer, Error, Unexpected};
 
 /// A wrapper containing a [`Bytes`]. This type is guaranteed to contain valid utf-8.
 ///
 /// [`Bytes`]: https://carllerche.github.io/bytes/bytes/struct.Bytes.html
-#[derive(Clone,PartialEq,Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BytesString {
     inner: Bytes,
 }
@@ -16,12 +16,10 @@ impl BytesString {
     /// Creates a `BytesString` from the provided bytes.
     pub fn new(inner: Bytes) -> Result<BytesString, Utf8Error> {
         match from_utf8(&inner[..]) {
-            Ok(_) => {/* valid utf-8 */},
+            Ok(_) => { /* valid utf-8 */ }
             Err(err) => return Err(err),
         }
-        Ok(BytesString {
-            inner,
-        })
+        Ok(BytesString { inner })
     }
     /// Get a reference to the inner string.
     pub fn as_str(&self) -> &str {
@@ -88,7 +86,7 @@ impl<'de> Visitor<'de> for BytesVisitor {
 
     fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
         Ok(BytesString {
-            inner: Bytes::from(v)
+            inner: Bytes::from(v),
         })
     }
 

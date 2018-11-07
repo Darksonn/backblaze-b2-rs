@@ -1,7 +1,7 @@
-use hyper::{client::ResponseFuture, Body};
-use futures::{Poll, Future, Async, Stream};
+use futures::{Async, Future, Poll, Stream};
 use http::response::Parts;
 use http::StatusCode;
+use hyper::{client::ResponseFuture, Body};
 
 use std::mem;
 
@@ -22,7 +22,6 @@ use crate::api::files::download::DownloadStream;
 pub struct DownloadFuture {
     state: State,
 }
-
 
 enum State {
     Connecting(ResponseFuture),
@@ -62,8 +61,8 @@ impl Future for DownloadFuture {
                 Action::Done(poll) => {
                     self.state = state;
                     return poll;
-                },
-                Action::Again() => { },
+                }
+                Action::Again() => {}
             }
         }
     }
@@ -78,68 +77,52 @@ impl State {
     #[inline]
     fn poll(self) -> (State, Action) {
         match self {
-            State::Connecting(mut fut) => {
-                match fut.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::Connecting(fut),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
-                    Ok(Async::Ready(resp)) => {
-                        let (parts, body) = resp.into_parts();
-                        if parts.status == StatusCode::OK
-                        || parts.status == StatusCode::PARTIAL_CONTENT {
-                            let stream = DownloadStream::new(body, &parts);
-                            (State::Done(), Action::Done(
-                                    Ok(Async::Ready((parts, stream)))))
-                        } else {
-                            let size = crate::get_content_length(&parts);
-                            (State::CollectingError(parts, body, Vec::with_capacity(size)),
-                            Action::Again())
-                        }
-                    },
-                    Err(e) => {
-                        (State::Done(), Action::Done(Err(e.into())))
-                    },
+            State::Connecting(mut fut) => match fut.poll() {
+                Ok(Async::NotReady) => {
+                    (State::Connecting(fut), Action::Done(Ok(Async::NotReady)))
                 }
+                Ok(Async::Ready(resp)) => {
+                    let (parts, body) = resp.into_parts();
+                    if parts.status == StatusCode::OK
+                        || parts.status == StatusCode::PARTIAL_CONTENT
+                    {
+                        let stream = DownloadStream::new(body, &parts);
+                        (
+                            State::Done(),
+                            Action::Done(Ok(Async::Ready((parts, stream)))),
+                        )
+                    } else {
+                        let size = crate::get_content_length(&parts);
+                        (
+                            State::CollectingError(parts, body, Vec::with_capacity(size)),
+                            Action::Again(),
+                        )
+                    }
+                }
+                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
             },
-            State::CollectingError(parts, mut body, mut bytes) => {
-                match body.poll() {
-                    Ok(Async::NotReady) => {
-                        (State::CollectingError(parts, body, bytes),
-                        Action::Done(Ok(Async::NotReady)))
-                    },
-                    Ok(Async::Ready(Some(chunk))) => {
-                        bytes.extend(&chunk[..]);
-                        (State::CollectingError(parts, body, bytes),
-                        Action::Again())
-                    },
-                    Ok(Async::Ready(None)) => {
-                        match ::serde_json::from_slice(&bytes) {
-                            Ok(err_msg) => {
-                                let err = B2Error::B2Error (
-                                    parts.status, err_msg
-                                );
-                                (State::Done(),
-                                Action::Done(Err(err)))
-                            },
-                            Err(e) => {
-                                (State::Done(),
-                                Action::Done(Err(e.into())))
-                            },
-                        }
-                    },
-                    Err(e) => {
-                        (State::Done(), Action::Done(Err(e.into())))
-                    },
+            State::CollectingError(parts, mut body, mut bytes) => match body.poll() {
+                Ok(Async::NotReady) => (
+                    State::CollectingError(parts, body, bytes),
+                    Action::Done(Ok(Async::NotReady)),
+                ),
+                Ok(Async::Ready(Some(chunk))) => {
+                    bytes.extend(&chunk[..]);
+                    (State::CollectingError(parts, body, bytes), Action::Again())
                 }
-            }
-            State::FailImmediately(err) => {
-                (State::Done(), Action::Done(Err(err)))
-            }
+                Ok(Async::Ready(None)) => match ::serde_json::from_slice(&bytes) {
+                    Ok(err_msg) => {
+                        let err = B2Error::B2Error(parts.status, err_msg);
+                        (State::Done(), Action::Done(Err(err)))
+                    }
+                    Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+                },
+                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+            },
+            State::FailImmediately(err) => (State::Done(), Action::Done(Err(err))),
             State::Done() => {
                 panic!("poll on finished backblaze_b2::files::download::DownloadFuture");
             }
         }
     }
 }
-
