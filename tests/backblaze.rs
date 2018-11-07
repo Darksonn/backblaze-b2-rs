@@ -22,7 +22,7 @@ use tokio_io::io::AllowStdIo;
 
 use backblaze_b2::B2Error;
 use backblaze_b2::stream_util;
-use backblaze_b2::api::authorize::{B2Credentials, B2Authorization};
+use backblaze_b2::api::authorize::{self, B2Credentials, B2Authorization};
 use backblaze_b2::api::buckets::{self, Bucket, BucketType};
 use backblaze_b2::api::files::{self, upload, download, File};
 
@@ -40,9 +40,9 @@ fn new_client() -> Client {
     let https = HttpsConnector::new(2).unwrap();
     hyper::client::Client::builder().build(https)
 }
-fn authorize(client: &Client) -> backblaze_b2::api::authorize::B2AuthFuture {
+fn authorize(client: &Client) -> authorize::B2AuthFuture {
     let creds = read_creds();
-    creds.authorize(&client)
+    authorize::authorize(&creds, client)
 }
 
 fn run_future<F,Fut,T,E>(f: F) -> Result<T,E>
@@ -95,7 +95,7 @@ fn authorize_fail_test() {
     match run_future(|| {
         let client = new_client();
         let creds = B2Credentials::new_ref("invalid", "invalid");
-        creds.authorize(&client)
+        authorize::authorize(&creds, &client)
     }) {
         Ok(auth) => {
             panic!("Got auth from invalid credentials. {:?}", auth);

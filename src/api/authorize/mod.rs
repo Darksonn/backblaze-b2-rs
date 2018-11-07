@@ -1,10 +1,10 @@
 //! This module defines various methods and structs used for authenticating on the B2
 //! server.
 //!
-//! Authentication is usually performed by calling the [`authorize`] method on the
+//! Authentication is usually performed by calling the [`authorize`] method with a
 //! [`B2Credentials`] struct, which returns a [`B2Authorization`].
 //!
-//!  [`authorize`]: struct.B2Credentials.html#method.authorize
+//!  [`authorize`]: fn.authorize.html
 //!  [`B2Credentials`]: struct.B2Credentials.html
 //!  [`B2Authorization`]: struct.B2Authorization.html
 
@@ -60,42 +60,44 @@ impl B2Credentials {
             auth_string,
         }
     }
-    /// This method performs a [b2_authorize_account][1] api call to the backblaze api and
-    /// returns a future resolving to an authorization token.
-    ///
-    /// # Errors
-    /// The future resolves to a [`B2Error`] in case something goes wrong. Besides the
-    /// standard non-authorization errors, this can fail with [`is_credentials_issue`].
-    ///
-    ///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
-    ///  [`is_credentials_issue`]: ../../enum.B2Error.html#method.is_credentials_issue
-    ///  [`B2Error`]: ../../enum.B2Error.html
-    pub fn authorize<C>(&self, client: &Client<C, Body>) -> B2AuthFuture
-    where
-        C: Connect + Sync + 'static,
-        C::Transport: 'static,
-        C::Future: 'static,
-    {
-        let mut request = Request::get(
-            "https://api.backblazeb2.com/b2api/v2/b2_authorize_account");
-        request.header("Authorization", self.auth_string.clone());
+}
 
-        let request = match request.body(Body::empty()) {
-            Ok(req) => req,
-            Err(err) => return B2AuthFuture {
-                future: B2Future::err(err),
-                id: self.id.clone(),
-            },
-        };
+/// This method performs a [b2_authorize_account][1] api call to the backblaze api and
+/// returns a future resolving to an authorization token.
+///
+/// # Errors
+/// The future resolves to a [`B2Error`] in case something goes wrong. Besides the
+/// standard non-authorization errors, this can fail with [`is_credentials_issue`].
+///
+///  [1]: https://www.backblaze.com/b2/docs/b2_authorize_account.html
+///  [`is_credentials_issue`]: ../../enum.B2Error.html#method.is_credentials_issue
+///  [`B2Error`]: ../../enum.B2Error.html
+pub fn authorize<C>(creds: &B2Credentials, client: &Client<C, Body>) -> B2AuthFuture
+where
+C: Connect + Sync + 'static,
+C::Transport: 'static,
+C::Future: 'static,
+{
+    let mut request = Request::get(
+        "https://api.backblazeb2.com/b2api/v2/b2_authorize_account");
+    request.header("Authorization", creds.auth_string.clone());
 
-        let future = client.request(request);
+    let request = match request.body(Body::empty()) {
+        Ok(req) => req,
+        Err(err) => return B2AuthFuture {
+            future: B2Future::err(err),
+            id: creds.id.clone(),
+        },
+    };
 
-        B2AuthFuture {
-            future: B2Future::new(future),
-            id: self.id.clone(),
-        }
+    let future = client.request(request);
+
+    B2AuthFuture {
+        future: B2Future::new(future),
+        id: creds.id.clone(),
     }
 }
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct B2AuthResponse {
@@ -122,9 +124,9 @@ pub struct Allowed {
 
 /// A future that resolves to a [`B2Authorization`].
 ///
-/// This future is typically created by the [`authorize`] method.
+/// This future is typically created by the [`authorize`] function.
 ///
-/// [`authorize`]: struct.B2Credentials.html#method.authorize
+/// [`authorize`]: fn.authorize.html
 /// [`B2Authorization`]: struct.B2Authorization.html
 pub struct B2AuthFuture {
     future: B2Future<B2AuthResponse>,
@@ -151,10 +153,10 @@ impl Future for B2AuthFuture {
 
 /// This struct contains the needed authorization to perform any b2 api call.
 ///
-/// It is typically created using the [`authorize`] method on [`B2Credentials`]. This type
-/// is internally reference counted, so cloning is cheap.
+/// It is typically created using the [`authorize`] function with a [`B2Credentials`].
+/// This type is internally reference counted, so cloning is cheap.
 ///
-///  [`authorize`]: struct.B2Credentials.html#method.authorize
+/// [`authorize`]: fn.authorize.html
 ///  [`B2Credentials`]: struct.B2Credentials.html
 #[derive(Clone,Debug)]
 pub struct B2Authorization {

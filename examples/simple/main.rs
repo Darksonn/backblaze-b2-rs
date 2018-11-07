@@ -19,7 +19,7 @@ use tokio::fs::{File as TokioFile};
 
 use backblaze_b2::B2Error;
 use backblaze_b2::stream_util;
-use backblaze_b2::api::authorize::{B2Credentials, B2Authorization};
+use backblaze_b2::api::authorize::{self, B2Credentials, B2Authorization};
 use backblaze_b2::api::buckets::{self, BucketType};
 use backblaze_b2::api::files::{self, upload, File as B2File};
 
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     // Let's authenticate our account.
     let creds = read_creds();
-    let auth = runtime.block_on(creds.authorize(&client))?;
+    let auth = runtime.block_on(authorize::authorize(&creds, &client))?;
 
     println!("Authenticated!");
 
