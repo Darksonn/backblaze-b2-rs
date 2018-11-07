@@ -128,7 +128,7 @@ where
                         Action::Done(Ok(Async::NotReady)),
                     ),
                     Ok(Async::Ready(Some(chunk))) => {
-                        partial.push(chunk.into());
+                        partial.push(&chunk.into());
                         (State::Collecting(body, partial), Action::Again())
                     }
                     Ok(Async::Ready(None)) => {
@@ -136,7 +136,7 @@ where
                     }
                     Err(e) => (State::Done(), Action::Done(Err(e.into()))),
                 },
-                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+                Err(e) => (State::Done(), Action::Done(Err(e))),
             },
             State::CollectingError(parts, mut body, mut bytes) => match body.poll() {
                 Ok(Async::NotReady) => (
@@ -190,7 +190,7 @@ where
             phantom: PhantomData,
         }
     }
-    fn push(&mut self, bytes: Bytes) {
+    fn push(&mut self, bytes: &Bytes) {
         self.buffer.extend(&bytes[..]);
     }
     fn next_value(&mut self) -> Result<T, ::serde_json::Error> {
@@ -223,12 +223,10 @@ where
             if self.in_string {
                 if self.last_was_escape {
                     self.last_was_escape = false;
-                } else {
-                    if next_char == '"' {
-                        self.in_string = false;
-                    } else if next_char == '\\' {
-                        self.last_was_escape = true;
-                    }
+                } else if next_char == '"' {
+                    self.in_string = false;
+                } else if next_char == '\\' {
+                    self.last_was_escape = true;
                 }
             } else {
                 match next_char {
@@ -289,7 +287,7 @@ mod tests {
     fn partial_json_test() {
         const JSON: &'static str = "[1, 2, 3, 4, 5]";
         let mut json: PartialJson<u32> = PartialJson::new(100, 1);
-        json.push(Bytes::from_static(JSON.as_bytes()));
+        json.push(&Bytes::from_static(JSON.as_bytes()));
         let mut res = Vec::new();
         while let Some(next) = json.next().unwrap() {
             res.push(next);
@@ -303,11 +301,11 @@ mod tests {
             let mut json: PartialJson<Vec<u32>> = PartialJson::new(0, 1);
             let mut res = Vec::new();
 
-            json.push(Bytes::from_static(&JSON.as_bytes()[..i]));
+            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
-            json.push(Bytes::from_static(&JSON.as_bytes()[i..]));
+            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
@@ -321,11 +319,11 @@ mod tests {
             let mut json: PartialJson<u8> = PartialJson::new(0, 2);
             let mut res: Vec<u8> = Vec::new();
 
-            json.push(Bytes::from_static(&JSON.as_bytes()[..i]));
+            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
-            json.push(Bytes::from_static(&JSON.as_bytes()[i..]));
+            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }

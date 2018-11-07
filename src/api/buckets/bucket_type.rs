@@ -10,25 +10,6 @@ pub enum BucketType {
     Snapshot,
 }
 impl BucketType {
-    /// Creates a `BucketType` from a string. The strings are the ones used by the
-    /// backblaze api.
-    ///
-    /// ```
-    /// use backblaze_b2::api::buckets::BucketType;
-    ///
-    /// assert_eq!(BucketType::from_str("allPublic"), Some(BucketType::Public));
-    /// assert_eq!(BucketType::from_str("allPrivate"), Some(BucketType::Private));
-    /// assert_eq!(BucketType::from_str("snapshot"), Some(BucketType::Snapshot));
-    /// assert_eq!(BucketType::from_str("invalid"), None);
-    /// ```
-    pub fn from_str(s: &str) -> Option<BucketType> {
-        match s {
-            "allPublic" => Some(BucketType::Public),
-            "allPrivate" => Some(BucketType::Private),
-            "snapshot" => Some(BucketType::Snapshot),
-            _ => None,
-        }
-    }
     /// This function returns the string needed to specify the bucket type to the
     /// backblaze api.
     pub fn as_str(self) -> &'static str {
@@ -39,6 +20,18 @@ impl BucketType {
         }
     }
 }
+impl std::str::FromStr for BucketType {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, &'static str> {
+        match s {
+            "allPublic" => Ok(BucketType::Public),
+            "allPrivate" => Ok(BucketType::Private),
+            "snapshot" => Ok(BucketType::Snapshot),
+            _ => Err("Not allPublic, allPrivate or snapshot."),
+        }
+    }
+}
+
 static BUCKET_TYPES: [&'static str; 3] = ["allPublic", "allPrivate", "snapshot"];
 struct BucketTypeVisitor;
 impl<'de> Visitor<'de> for BucketTypeVisitor {
@@ -50,9 +43,9 @@ impl<'de> Visitor<'de> for BucketTypeVisitor {
     where
         E: de::Error,
     {
-        match BucketType::from_str(v) {
-            None => Err(de::Error::unknown_variant(v, &BUCKET_TYPES)),
-            Some(v) => Ok(v),
+        match v.parse::<BucketType>() {
+            Err(_) => Err(de::Error::unknown_variant(v, &BUCKET_TYPES)),
+            Ok(v) => Ok(v),
         }
     }
 }

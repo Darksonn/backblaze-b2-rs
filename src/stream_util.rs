@@ -97,7 +97,7 @@ where
                     Ok(Async::Ready(Some(sha1_bytes)))
                 }
                 Ok(Async::NotReady) => Ok(Async::NotReady),
-                Err(err) => Err(err.into()),
+                Err(err) => Err(err),
             }
         }
     }

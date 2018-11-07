@@ -14,6 +14,8 @@
 //!
 //! [1]: https://www.backblaze.com/b2/docs/
 //! [2]: https://doc.rust-lang.org/std/mem/fn.drop.html
+// we ignore some clippy lints
+#![allow(unknown_lints)]
 
 extern crate base64;
 extern crate percent_encoding;
@@ -46,11 +48,8 @@ pub use bytes_string::BytesString;
 pub(crate) fn get_content_length(parts: &http::response::Parts) -> usize {
     use http::header::CONTENT_LENGTH;
     if let Some(size_str) = parts.headers.get(CONTENT_LENGTH) {
-        match size_str.to_str().map(str::parse) {
-            Ok(Ok(size)) => {
-                return size;
-            }
-            _ => {}
+        if let Ok(Ok(size)) = size_str.to_str().map(str::parse) {
+            return size;
         }
     }
     0
@@ -120,16 +119,16 @@ impl B2Error {
     ///
     ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
     pub fn is_service_unavilable(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            status >= 500 && status <= 599
+        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
+            *status >= 500 && *status <= 599
         } else {
             false
         }
     }
     /// Returns true if we are making too many requests.
     pub fn is_too_many_requests(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            status == 429
+        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
+            *status == 429
         } else {
             false
         }
@@ -174,7 +173,7 @@ impl B2Error {
     /// Returns true if you should be using some sort of exponential back off for future
     /// requests.
     pub fn should_back_off(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
             match status {
                 408 => true,
                 429 => true,
@@ -190,7 +189,7 @@ impl B2Error {
 impl B2Error {
     /// Returns true if the error is related to invalid credentials during authentication.
     pub fn is_credentials_issue(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             match message.as_str() {
                 "B2 has not been enabled for this account" => true,
                 "User is in B2 suspend" => true,
@@ -204,7 +203,7 @@ impl B2Error {
         }
     }
     pub fn is_wrong_credentials(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
             match code.as_str() {
                 "bad_auth_token" => true,
                 _ => false,
@@ -218,14 +217,14 @@ impl B2Error {
     ///
     ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
     pub fn is_expired_authentication(&self) -> bool {
-        if let &B2Error::B2Error(
+        if let B2Error::B2Error(
             _,
             B2ErrorMessage {
                 ref code, status, ..
             },
         ) = self
         {
-            if status == 401 && code == "expired_auth_token" {
+            if *status == 401 && code == "expired_auth_token" {
                 return true;
             }
         }
@@ -237,7 +236,7 @@ impl B2Error {
         if self.is_expired_authentication() {
             return true;
         }
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             if message.starts_with("Account ") && message.ends_with(" does not exist") {
                 return true;
             }
@@ -263,7 +262,7 @@ impl B2Error {
     /// Returns true if the error is caused by a file name which is not allowed on the b2
     /// server.
     pub fn is_invalid_file_name(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             match message.as_str() {
                 "File names must contain at least one character" => true,
                 "File names in UTF8 must be no more than 1000 bytes" => true,
@@ -281,7 +280,7 @@ impl B2Error {
     }
     /// Returns true if the error is related to a file that was not found.
     pub fn is_file_not_found(&self) -> bool {
-        if let &B2Error::B2Error(
+        if let B2Error::B2Error(
             _,
             B2ErrorMessage {
                 ref code,
@@ -317,7 +316,7 @@ impl B2Error {
     }
     /// Returns true if the error is caused by an attempt to hide a hidden file.
     pub fn is_file_already_hidden(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
             code == "already_hidden"
         } else {
             false
@@ -326,7 +325,7 @@ impl B2Error {
     /// Returns true if the error is caused by a request to download an interval of a file
     /// that is out of bounds.
     pub fn is_range_out_of_bounds(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
             code == "range_not_satisfiable"
         } else {
             false
@@ -334,7 +333,7 @@ impl B2Error {
     }
     /// Returns true if the error is caused by the sha1 of the uploaded file not matching.
     pub fn is_invalid_sha1(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             message == "Sha1 did not match data received"
         } else {
             false
@@ -346,14 +345,14 @@ impl B2Error {
     /// Returns true if the error is caused by the account having reached the maximum
     /// bucket count.
     pub fn is_maximum_bucket_limit(&self) -> bool {
-        if let &B2Error::B2Error(
+        if let B2Error::B2Error(
             _,
             B2ErrorMessage {
                 ref code, status, ..
             },
         ) = self
         {
-            if status == 400 && code == "too_many_buckets" {
+            if *status == 400 && code == "too_many_buckets" {
                 return true;
             }
         }
@@ -362,14 +361,14 @@ impl B2Error {
     /// Returns true if the error is caused by an attempt to create a bucket with a name
     /// of a pre-existing bucket.
     pub fn is_duplicate_bucket_name(&self) -> bool {
-        if let &B2Error::B2Error(
+        if let B2Error::B2Error(
             _,
             B2ErrorMessage {
                 ref code, status, ..
             },
         ) = self
         {
-            if status == 400 && code == "duplicate_bucket_name" {
+            if *status == 400 && code == "duplicate_bucket_name" {
                 return true;
             }
         }
@@ -378,7 +377,7 @@ impl B2Error {
     /// Returns true if the error is caused by an attempt to create a bucket with a name
     /// which is not allowed.
     pub fn is_invalid_bucket_name(&self) -> bool {
-        if let &B2Error::B2Error(
+        if let B2Error::B2Error(
             _,
             B2ErrorMessage {
                 ref message,
@@ -387,7 +386,7 @@ impl B2Error {
             },
         ) = self
         {
-            if status == 400 {
+            if *status == 400 {
                 match message.as_str() {
                     "bucketName must be at least 6 characters long" => true,
                     "bucketName can be at most 50 characters long" => true,
@@ -406,7 +405,7 @@ impl B2Error {
     /// Returns true if the error is caused by requests to interact with buckets that do
     /// not exist.
     pub fn is_bucket_not_found(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             if message.starts_with("Bucket does not exist: ") {
                 return true;
             }
@@ -426,13 +425,8 @@ impl B2Error {
                 return true;
             }
             if message.starts_with("Bucket ") || message.starts_with("bucket ") {
-                if message.ends_with(" does not exist") {
-                    true
-                } else if message.ends_with(" is not a B2 bucket") {
-                    true
-                } else {
-                    false
-                }
+                message.ends_with(" does not exist")
+                    || message.ends_with(" is not a B2 bucket")
             } else {
                 false
             }
@@ -445,15 +439,15 @@ impl B2Error {
 impl B2Error {
     /// Returns true if a request used a ifRevisionIs header and the test failed.
     pub fn is_conflict(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            status == 409
+        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
+            *status == 409
         } else {
             false
         }
     }
     /// Returns true if the usage cap on backblaze b2 has been exceeded.
     pub fn is_cap_exceeded(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
             code == "cap_exceeded"
         } else {
             false
@@ -462,7 +456,7 @@ impl B2Error {
     /// Returns true if the error is caused by interacting with snapshot buckets in ways
     /// not allowed.
     pub fn is_snapshot_interaction_failure(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             match message.as_str() {
                 "Snapshot buckets are reserved for Backblaze use" => true,
                 "Allow snapshot header must be specified when deleting a file from a snapshot bucket" => true,
@@ -475,7 +469,7 @@ impl B2Error {
     }
     /// Returns true if the issue is regarding an invalid file prefix.
     pub fn is_prefix_issue(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             match message.as_str() {
                 "Prefix must not start with delimiter" => true,
                 "Prefix must be 1 or more characters long" => true,
@@ -487,7 +481,7 @@ impl B2Error {
     }
     /// Returns true if the issue is an invalid path delimiter.
     pub fn is_invalid_delimiter(&self) -> bool {
-        if let &B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
+        if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
             message == "Delimiter must be within acceptable list"
         } else {
             false

@@ -140,10 +140,10 @@ where
         let dur = now.duration_since(self.last_read);
         let nanos = dur
             .as_secs()
-            .saturating_mul(1000000000u64)
-            .saturating_add(dur.subsec_nanos() as u64);
+            .saturating_mul(1_000_000_000u64)
+            .saturating_add(u64::from(dur.subsec_nanos()));
         let tokens_x_1000000000 = nanos.saturating_mul(self.rate);
-        let tokens = tokens_x_1000000000 / 1000000000u64;
+        let tokens = tokens_x_1000000000 / 1_000_000_000u64;
         let new_tokens = self.tokens.saturating_add(saturating_u64_to_usize(tokens));
         self.tokens = min(self.bucket_size, new_tokens);
         self.last_read = now;

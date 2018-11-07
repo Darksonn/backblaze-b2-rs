@@ -12,6 +12,7 @@ use serde::ser::{Serialize, Serializer};
 pub struct BytesString {
     inner: Bytes,
 }
+#[allow(len_without_is_empty)]
 impl BytesString {
     /// Creates a `BytesString` from the provided bytes.
     pub fn new(inner: Bytes) -> Result<BytesString, Utf8Error> {

@@ -23,14 +23,11 @@ impl DownloadStream {
     pub(crate) fn new(body: Body, parts: &Parts) -> DownloadStream {
         use http::header::CONTENT_LENGTH;
         if let Some(size_str) = parts.headers.get(CONTENT_LENGTH) {
-            match size_str.to_str().map(str::parse) {
-                Ok(Ok(size)) => {
-                    return DownloadStream {
-                        inner: Inner(body),
-                        size: Some(size),
-                    };
-                }
-                _ => {}
+            if let Ok(Ok(size)) = size_str.to_str().map(str::parse) {
+                return DownloadStream {
+                    inner: Inner(body),
+                    size: Some(size),
+                };
             }
         }
         DownloadStream {

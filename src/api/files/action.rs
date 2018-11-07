@@ -15,27 +15,6 @@ pub enum Action {
     Folder,
 }
 impl Action {
-    /// Creates an `Action` from a string. The strings are the ones used by the backblaze
-    /// api.
-    ///
-    /// ```
-    /// use backblaze_b2::api::files::Action;
-    ///
-    /// assert_eq!(Action::from_str("upload"), Some(Action::Upload));
-    /// assert_eq!(Action::from_str("start"), Some(Action::Start));
-    /// assert_eq!(Action::from_str("hide"), Some(Action::Hide));
-    /// assert_eq!(Action::from_str("folder"), Some(Action::Folder));
-    /// assert_eq!(Action::from_str("invalid"), None);
-    /// ```
-    pub fn from_str(s: &str) -> Option<Action> {
-        match s {
-            "upload" => Some(Action::Upload),
-            "start" => Some(Action::Start),
-            "hide" => Some(Action::Hide),
-            "folder" => Some(Action::Folder),
-            _ => None,
-        }
-    }
     /// This function returns the string needed to specify the action to the backblaze api.
     pub fn as_str(self) -> &'static str {
         match self {
@@ -46,6 +25,19 @@ impl Action {
         }
     }
 }
+impl std::str::FromStr for Action {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, &'static str> {
+        match s {
+            "upload" => Ok(Action::Upload),
+            "start" => Ok(Action::Start),
+            "hide" => Ok(Action::Hide),
+            "folder" => Ok(Action::Folder),
+            _ => Err("Not upload, start, hide or folder."),
+        }
+    }
+}
+
 static ACTIONS: [&'static str; 4] = ["upload", "start", "hide", "folder"];
 struct ActionVisitor;
 impl<'de> Visitor<'de> for ActionVisitor {
@@ -57,9 +49,9 @@ impl<'de> Visitor<'de> for ActionVisitor {
     where
         E: de::Error,
     {
-        match Action::from_str(v) {
-            None => Err(de::Error::unknown_variant(v, &ACTIONS)),
-            Some(v) => Ok(v),
+        match v.parse::<Action>() {
+            Err(_) => Err(de::Error::unknown_variant(v, &ACTIONS)),
+            Ok(v) => Ok(v),
         }
     }
 }

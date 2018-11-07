@@ -19,7 +19,7 @@ pub struct Capabilities {
 }
 impl Capabilities {
     /// Create a new `Capabilities` with everything set to `false`.
-    pub fn none() -> Self {
+    pub fn empty() -> Self {
         Capabilities {
             list_keys: false,
             write_keys: false,
@@ -63,6 +63,10 @@ impl Capabilities {
             + self.share_files as usize
             + self.write_files as usize
             + self.delete_files as usize
+    }
+    /// Returns true if this key has no capabilities.
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -126,7 +130,7 @@ impl<'de> Visitor<'de> for CapabilityVisitor {
     where
         A: de::SeqAccess<'de>,
     {
-        let mut res = Capabilities::none();
+        let mut res = Capabilities::empty();
         while let Some(next) = seq.next_element::<&'de str>()? {
             match next {
                 "listKeys" => res.list_keys = true,

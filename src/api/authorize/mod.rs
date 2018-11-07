@@ -252,7 +252,7 @@ impl<'de> Deserialize<'de> for B2Credentials {
     where
         D: Deserializer<'de>,
     {
-        const FIELDS: &'static [&'static str] = &["id", "key"];
+        const FIELDS: &[&str] = &["id", "key"];
         deserializer.deserialize_struct("B2Credentials", FIELDS, B2CredentialsVisitor)
     }
 }
