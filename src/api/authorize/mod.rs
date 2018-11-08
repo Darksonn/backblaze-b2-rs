@@ -134,6 +134,12 @@ pub struct B2AuthFuture {
     future: B2Future<B2AuthResponse>,
     id: BytesString,
 }
+impl B2AuthFuture {
+    /// Returns `true` if the future is done.
+    pub fn is_done(&self) -> bool {
+        self.future.is_done()
+    }
+}
 impl Future for B2AuthFuture {
     type Item = B2Authorization;
     type Error = B2Error;

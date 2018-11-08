@@ -48,6 +48,13 @@ where
             state: State::FailImmediately(err.into()),
         }
     }
+    /// Returns `true` if the future is done.
+    pub fn is_done(&self) -> bool {
+        match self.state {
+            Done(_) => true,
+            _ => false,
+        }
+    }
 }
 impl<T> Future for B2Future<T>
 where
