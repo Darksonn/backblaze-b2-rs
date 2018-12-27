@@ -1,4 +1,7 @@
 # backblaze-b2-rs
+
+## This library is currently on hold waiting for the async/await language feature.
+
 Rust library for using the backblaze b2 api. See [here][1] for more information.
 See [here][2] for documentation.
 
