@@ -25,6 +25,7 @@ extern crate sha1;
 #[macro_use]
 extern crate serde_derive;
 extern crate bytes;
+extern crate crossbeam;
 
 extern crate futures;
 extern crate http;
@@ -35,8 +36,10 @@ extern crate tokio_io;
 
 use hyper::StatusCode;
 use std::fmt;
+use std::sync::Arc;
 
 pub mod api;
+pub mod source;
 pub mod b2_future;
 mod bytes_string;
 pub mod prelude;
@@ -60,7 +63,7 @@ pub(crate) fn get_content_length(parts: &http::response::Parts) -> usize {
 /// This struct is usually contained in a [`B2Error`].
 ///
 ///  [`B2Error`]: enum.B2Error.html
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct B2ErrorMessage {
     pub code: String,
     pub message: String,
@@ -100,6 +103,9 @@ pub enum B2Error {
     B2Error(StatusCode, B2ErrorMessage),
     /// This type is only returned if the b2 website is not following the api spec.
     ApiInconsistency(String),
+    /// Error types are normally not `Clone`, however in parts of this library errors need
+    /// to be returned to multiple receivers. This is handled by this variant.
+    Nested(Arc<B2Error>),
 }
 impl B2Error {
     /// Turn this error into an io error.
@@ -119,18 +125,22 @@ impl B2Error {
     ///
     ///  [`should_obtain_new_authentication`]: #method.should_obtain_new_authentication
     pub fn is_service_unavilable(&self) -> bool {
-        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            *status >= 500 && *status <= 599
-        } else {
-            false
+        match self {
+            B2Error::B2Error(_, B2ErrorMessage { status, .. }) => {
+                *status >= 500 && *status <= 599
+            },
+            B2Error::Nested(inner) => inner.is_service_unavilable(),
+            _ => false,
         }
     }
     /// Returns true if we are making too many requests.
     pub fn is_too_many_requests(&self) -> bool {
-        if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            *status == 429
-        } else {
-            false
+        match self {
+            B2Error::B2Error(_, B2ErrorMessage { status, .. }) => {
+                *status == 429
+            },
+            B2Error::Nested(inner) => inner.is_too_many_requests(),
+            _ => false,
         }
     }
     fn get_io_kind(&self) -> std::io::ErrorKind {
@@ -151,6 +161,7 @@ impl B2Error {
                 .unwrap_or(ErrorKind::InvalidData),
             B2Error::B2Error(_, _) => ErrorKind::Other,
             B2Error::ApiInconsistency(_) => ErrorKind::InvalidData,
+            B2Error::Nested(inner) => inner.get_io_kind(),
         }
     }
     /// Returns true if any of the situtations described on the [B2 documentation][1] has
@@ -509,6 +520,19 @@ impl From<std::io::Error> for B2Error {
         B2Error::IOError(err)
     }
 }
+impl From<Arc<B2Error>> for B2Error {
+    fn from(arc: Arc<B2Error>) -> B2Error {
+        match Arc::try_unwrap(arc) {
+            Ok(err) => err,
+            Err(arc) => {
+                if let B2Error::Nested(ref inner) = *arc {
+                    return B2Error::Nested(inner.clone());
+                }
+                B2Error::Nested(arc)
+            },
+        }
+    }
+}
 impl fmt::Display for B2Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -520,6 +544,7 @@ impl fmt::Display for B2Error {
                 write!(f, "{} ({}): {}", err.status, err.code, err.message)
             }
             B2Error::ApiInconsistency(ref msg) => msg.fmt(f),
+            B2Error::Nested(ref inner) => inner.fmt(f),
         }
     }
 }
@@ -532,6 +557,7 @@ impl std::error::Error for B2Error {
             B2Error::JsonError(err) => Some(err),
             B2Error::B2Error(_, _) => None,
             B2Error::ApiInconsistency(_) => None,
+            B2Error::Nested(ref inner) => inner.cause(),
         }
     }
 }

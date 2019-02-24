@@ -285,9 +285,9 @@ pub struct UploadPartResponse {
 /// [1]: https://www.backblaze.com/b2/docs/b2_upload_part.html
 /// [2]: https://docs.rs/tokio/0.1/tokio/fs/struct.File.html
 /// [`wrap_stream`]: https://hyper.rs/hyper/master/hyper/struct.Body.html#method.wrap_stream
-/// [`ThrottledRead`]: ../../throttle/struct.ThrottledRead.html
+/// [`ThrottledRead`]: ../../../../throttle/struct.ThrottledRead.html
 /// [`AsyncRead`]: https://docs.rs/tokio-io/0.1/tokio_io/trait.AsyncRead.html
-/// [`chunked_stream`]: ../../stream_util/fn.chunked_stream.html
+/// [`chunked_stream`]: ../../../../stream_util/fn.chunked_stream.html
 pub fn upload_part<C, B>(
     url: &UploadPartUrl,
     client: &Client<C, B>,

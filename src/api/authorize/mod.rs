@@ -115,7 +115,7 @@ struct B2AuthResponse {
 ///
 /// If the bucket is set, the authorization can only access that bucket, and if
 /// `name_prefix` is set, it can only access files with that prefix.
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Allowed {
     pub capabilities: Capabilities,
@@ -171,7 +171,7 @@ impl Future for B2AuthFuture {
 ///
 /// [`authorize`]: fn.authorize.html
 ///  [`B2Credentials`]: struct.B2Credentials.html
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct B2Authorization {
     pub account_id: BytesString,
     pub authorization_token: BytesString,

@@ -106,6 +106,40 @@ fn authorize_fail_test() {
         }
     }
 }
+
+#[test]
+fn auth_source_test() {
+    use backblaze_b2::source::AuthSource;
+    run_future(|| {
+        let client = new_client();
+        let creds = read_creds();
+        let auth_source = AuthSource::new(creds, client);
+
+        let auth1 = auth_source.authentication();
+        let auth2 = auth_source.authentication();
+        let auth3 = auth_source.authentication();
+
+        let future = auth1.join(auth2).join(auth3);
+        future.and_then(move |((auth1, auth2), auth3)| {
+            assert_eq!(auth1, auth2);
+            assert_eq!(auth2, auth3);
+            let first_auth = auth1;
+
+            auth_source.reauthenticate(&first_auth);
+
+            let auth1 = auth_source.authentication();
+            let auth2 = auth_source.authentication();
+            let auth3 = auth_source.authentication();
+
+            auth1.join(auth2).join(auth3).map(move |((auth1, auth2), auth3)| {
+                assert_eq!(auth1, auth2);
+                assert_eq!(auth2, auth3);
+                assert!(first_auth != auth1);
+            })
+        })
+    }).unwrap();
+}
+
 #[test]
 fn list_buckets_test() {
     let buckets = run_future(|| {

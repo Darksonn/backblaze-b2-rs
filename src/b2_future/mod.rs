@@ -51,7 +51,7 @@ where
     /// Returns `true` if the future is done.
     pub fn is_done(&self) -> bool {
         match self.state {
-            Done(_) => true,
+            State::Done(_) => true,
             _ => false,
         }
     }

@@ -86,7 +86,7 @@ where
 /// [`wrap_stream`]: https://hyper.rs/hyper/master/hyper/struct.Body.html#method.wrap_stream
 /// [`ThrottledRead`]: ../../throttle/struct.ThrottledRead.html
 /// [`AsyncRead`]: https://docs.rs/tokio-io/0.1/tokio_io/trait.AsyncRead.html
-/// [`chunked_stream`]: ../../stream_util/fn.chunked_stream.html
+/// [`chunked_stream`]: ../../../stream_util/fn.chunked_stream.html
 pub fn upload_file<C, B>(
     url: &UploadUrl,
     client: &Client<C, B>,
@@ -147,7 +147,7 @@ where
 /// [`wrap_stream`]: https://hyper.rs/hyper/master/hyper/struct.Body.html#method.wrap_stream
 /// [`ThrottledRead`]: ../../throttle/struct.ThrottledRead.html
 /// [`AsyncRead`]: https://docs.rs/tokio-io/0.1/tokio_io/trait.AsyncRead.html
-/// [`chunked_stream`]: ../../stream_util/fn.chunked_stream.html
+/// [`chunked_stream`]: ../../../stream_util/fn.chunked_stream.html
 pub fn upload_file_info<C, B, InfoName, InfoValue>(
     url: &UploadUrl,
     client: &Client<C, B>,
