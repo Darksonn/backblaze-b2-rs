@@ -557,7 +557,7 @@ impl std::error::Error for B2Error {
             B2Error::JsonError(err) => Some(err),
             B2Error::B2Error(_, _) => None,
             B2Error::ApiInconsistency(_) => None,
-            B2Error::Nested(ref inner) => inner.cause(),
+            B2Error::Nested(ref inner) => inner.source(),
         }
     }
 }

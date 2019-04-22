@@ -97,9 +97,9 @@ where
     pub fn provide_auth(&self, auth: B2Authorization) {
         self.inner.set_state(Ok(auth));
     }
-    pub(crate) fn get_client(&self) -> &Client<C, Body> {
-        &self.inner.client
-    }
+    //pub(crate) fn get_client(&self) -> &Client<C, Body> {
+    //    &self.inner.client
+    //}
 }
 /// A future that resolves to an authentication.
 ///
