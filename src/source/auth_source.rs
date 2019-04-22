@@ -1,6 +1,5 @@
-use crossbeam::atomic::ArcCell;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use futures::sync::oneshot;
 use crossbeam::queue::SegQueue;
 
@@ -67,7 +66,7 @@ where
     ///
     /// This only removes the active authorization, and does not start a re-auth task.
     pub fn reauthenticate(&self, auth: &B2Authorization) {
-        match *self.inner.state.get() {
+        match *self.inner.state.lock().unwrap() {
             AuthState::ActiveAuth(ref active_auth) => {
                 if auth != active_auth {
                     return;
@@ -79,14 +78,14 @@ where
     }
     /// Returns the currently active authorization, if there is one.
     pub fn try_get_active_authentication(&self) -> Option<B2Authorization> {
-        match *self.inner.state.get() {
+        match *self.inner.state.lock().unwrap() {
             AuthState::ActiveAuth(ref auth) => Some(auth.clone()),
             AuthState::NoActiveAuth() => None,
         }
     }
     /// Checks whether we currently have an active authorization.
     pub fn has_active_auth(&self) -> bool {
-        match *self.inner.state.get() {
+        match *self.inner.state.lock().unwrap() {
             AuthState::ActiveAuth(_) => true,
             AuthState::NoActiveAuth() => false,
         }
@@ -97,6 +96,9 @@ where
     /// will be replaced by the result of the reauthentication once it completes.
     pub fn provide_auth(&self, auth: B2Authorization) {
         self.inner.set_state(Ok(auth));
+    }
+    pub(crate) fn get_client(&self) -> &Client<C, Body> {
+        &self.inner.client
     }
 }
 /// A future that resolves to an authentication.
@@ -175,7 +177,7 @@ struct AuthInner<C> {
     client: Client<C, Body>,
     notify: SegQueue<oneshot::Sender<Result<B2Authorization, Arc<B2Error>>>>,
     reauth_lock: AtomicBool,
-    state: ArcCell<AuthState>,
+    state: Mutex<AuthState>,
 }
 impl<C> AuthInner<C>
 where
@@ -189,11 +191,11 @@ where
             client,
             notify: SegQueue::new(),
             reauth_lock: AtomicBool::new(false),
-            state: ArcCell::new(Arc::new(AuthState::NoActiveAuth())),
+            state: Mutex::new(AuthState::NoActiveAuth()),
         }
     }
     fn try_get_auth(arc: &Arc<Self>) -> Option<B2Authorization> {
-        match *arc.state.get() {
+        match *arc.state.lock().unwrap() {
             AuthState::ActiveAuth(ref auth) => Some(auth.clone()),
             AuthState::NoActiveAuth() => None,
         }
@@ -201,7 +203,11 @@ where
     fn start_reauth(arc: &Arc<Self>) {
         if !arc.reauth_lock.compare_and_swap(false, true, Ordering::Acquire) {
             // we got the lock. Let's reauth
-            arc.state.set(Arc::new(AuthState::NoActiveAuth()));
+            {
+                let mut guard = arc.state.lock().unwrap();
+                *guard = AuthState::NoActiveAuth();
+                drop(guard);
+            }
             let auth_future = authorize(&arc.credentials, &arc.client);
             spawn(AuthTask(auth_future, arc.clone()));
         }
@@ -217,11 +223,13 @@ where
 }
 impl<C> AuthInner<C> {
     fn set_state(&self, state: Result<B2Authorization, Arc<B2Error>>) {
-        let new_state = Arc::new(match state {
+        let new_state = match state {
             Ok(auth) => AuthState::ActiveAuth(auth),
             Err(_err) => AuthState::NoActiveAuth(),
-        });
-        self.state.set(new_state);
+        };
+        let mut guard = self.state.lock().unwrap();
+        *guard = new_state;
+        drop(guard);
     }
 }
 
@@ -235,7 +243,7 @@ impl<C> AuthTask<C> {
     fn finish(&self, res: Result<B2Authorization, Arc<B2Error>>) -> Result<Async<()>, ()> {
         self.1.set_state(res.clone());
         self.1.reauth_lock.store(false, Ordering::Release);
-        while let Some(to_notify) = self.1.notify.try_pop() {
+        while let Ok(to_notify) = self.1.notify.pop() {
             // ignore closed receivers
             // it just means they've been dropped
             let _ = to_notify.send(res.clone());

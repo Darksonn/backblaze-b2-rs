@@ -24,7 +24,7 @@ futures = "0.1"
 tokio = "0.1"
 tokio-codec = "0.1"
 tokio-io = "0.1"
-crossbeam = "0.4"
+crossbeam = "0.7.1"
 
 [dependencies.bytes]
 version = "0.4"

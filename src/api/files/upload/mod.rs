@@ -21,7 +21,7 @@ pub mod large;
 /// url for each thread.
 ///
 /// [`get_upload_url`]: fn.get_upload_url.html
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadUrl {
     pub bucket_id: String,
