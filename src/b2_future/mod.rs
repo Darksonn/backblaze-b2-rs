@@ -1,11 +1,15 @@
 //! Futures that parse the `ResponseFuture` returned from hyper.
 
-use futures::{Async, Future, Poll, Stream};
+use std::future::Future;
+use std::task::{Context, Poll};
+use std::pin::Pin;
+use futures::stream::Stream;
 use http::response::Parts;
 use http::StatusCode;
 use hyper::{client::ResponseFuture, Body};
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
+use std::cmp::min;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -24,22 +28,19 @@ enum State<T> {
     FailImmediately(B2Error),
     Done(PhantomData<T>),
 }
-// Body does not impl Sync, but since all access to the body happens through the poll
-// method on B2Future which is a &mut method, only one thread can access the Body at
-// a time.
+// The ResponseFuture does not implement Sync, but since it can only be accessed through
+// &mut methods, it is not possible to synchronously access it.
 unsafe impl<T> Sync for State<T> {}
-// We don't actually contain any values of T, so sending this value doesn't send a value
-// of T. T is only used for return values.
+// The compiler adds a T: Send bound, but it is not needed as we don't store any Ts.
 unsafe impl<T> Send for State<T> {}
+// The compiler adds a T: Unpin bound, but it is not needed as we don't store any Ts.
+impl<T> Unpin for State<T> {}
 
-impl<T> B2Future<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
+impl<T: DeserializeOwned> B2Future<T> {
     /// Create a new `B2Future`.
-    pub fn new(resp: ResponseFuture) -> Self {
+    pub fn new(inner: ResponseFuture) -> Self {
         B2Future {
-            state: State::Connecting(resp),
+            state: State::Connecting(inner),
         }
     }
     /// Create a `B2Future` that immediately fails with the specified error.
@@ -56,86 +57,84 @@ where
         }
     }
 }
-impl<T> Future for B2Future<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
-    type Item = T;
-    type Error = B2Error;
-    fn poll(&mut self) -> Poll<T, B2Error> {
-        let mut state = mem::replace(&mut self.state, State::Done(PhantomData));
+impl<T: DeserializeOwned> Future for B2Future<T> {
+    type Output = Result<T, B2Error>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T, B2Error>> {
+        let state_ref = &mut self.get_mut().state;
         loop {
-            let (new_state, action) = state.poll();
-            state = new_state;
-            match action {
-                Action::Done(poll) => {
-                    self.state = state;
-                    return poll;
-                }
-                Action::Again() => {}
+            if let Some(poll) = state_ref.poll(cx) {
+                return poll;
             }
         }
     }
 }
 
-enum Action<T> {
-    Done(Poll<T, B2Error>),
-    Again(),
-}
-
-impl<T> State<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
+impl<T: DeserializeOwned> State<T> {
     #[inline]
     fn done() -> Self {
         State::Done(PhantomData)
     }
+    // Poll the state. This will advance the state machine at most once, so repeatedly
+    // call it until it returns Some.
     #[inline]
-    fn poll(self) -> (State<T>, Action<T>) {
+    fn poll(&mut self, cx: &mut Context) -> Option<Poll<Result<T, B2Error>>> {
         match self {
-            State::Connecting(mut fut) => match fut.poll() {
-                Ok(Async::NotReady) => {
-                    (State::Connecting(fut), Action::Done(Ok(Async::NotReady)))
-                }
-                Ok(Async::Ready(resp)) => {
-                    let (parts, body) = resp.into_parts();
-                    let size = crate::get_content_length(&parts);
-                    (
-                        State::Collecting(parts, body, Vec::with_capacity(size)),
-                        Action::Again(),
-                    )
-                }
-                Err(e) => (State::done(), Action::Done(Err(e.into()))),
-            },
-            State::Collecting(parts, mut body, mut bytes) => match body.poll() {
-                Ok(Async::NotReady) => (
-                    State::Collecting(parts, body, bytes),
-                    Action::Done(Ok(Async::NotReady)),
-                ),
-                Ok(Async::Ready(Some(chunk))) => {
-                    bytes.extend(&chunk[..]);
-                    (State::Collecting(parts, body, bytes), Action::Again())
-                }
-                Ok(Async::Ready(None)) => {
-                    if parts.status == StatusCode::OK {
-                        match ::serde_json::from_slice(&bytes) {
-                            Ok(t) => (State::done(), Action::Done(Ok(Async::Ready(t)))),
-                            Err(e) => (State::done(), Action::Done(Err(e.into()))),
-                        }
-                    } else {
-                        match ::serde_json::from_slice(&bytes) {
-                            Ok(err_msg) => {
-                                let err = B2Error::B2Error(parts.status, err_msg);
-                                (State::done(), Action::Done(Err(err)))
-                            }
-                            Err(e) => (State::done(), Action::Done(Err(e.into()))),
-                        }
+            State::Connecting(ref mut fut) => {
+                match Pin::new(fut).poll(cx) {
+                    Poll::Pending => {
+                        Some(Poll::Pending)
+                    }
+                    Poll::Ready(Ok(resp)) => {
+                        let (parts, body) = resp.into_parts();
+                        let size = min(crate::get_content_length(&parts), 0x1000000);
+                        *self = State::Collecting(parts, body, Vec::with_capacity(size));
+                        None
+                    }
+                    Poll::Ready(Err(e)) => {
+                        *self = State::done();
+                        Some(Poll::Ready(Err(e.into())))
                     }
                 }
-                Err(e) => (State::done(), Action::Done(Err(e.into()))),
             },
-            State::FailImmediately(err) => (State::done(), Action::Done(Err(err))),
+            State::Collecting(ref parts, ref mut body, ref mut bytes) => {
+                match Pin::new(body).poll_next(cx) {
+                    Poll::Pending => {
+                        Some(Poll::Pending)
+                    }
+                    Poll::Ready(Some(Ok(chunk))) => {
+                        bytes.extend(chunk.as_ref());
+                        None
+                    }
+                    Poll::Ready(None) => {
+                        let result = if parts.status == StatusCode::OK {
+                            match ::serde_json::from_slice(&bytes) {
+                                Ok(t) => Some(Poll::Ready(Ok(t))),
+                                Err(e) => Some(Poll::Ready(Err(e.into()))),
+                            }
+                        } else {
+                            match ::serde_json::from_slice(&bytes) {
+                                Ok(err_msg) => {
+                                    let err = B2Error::B2Error(parts.status, err_msg);
+                                    Some(Poll::Ready(Err(err)))
+                                }
+                                Err(e) => Some(Poll::Ready(Err(e.into())))
+                            }
+                        };
+                        *self = State::done();
+                        result
+                    }
+                    Poll::Ready(Some(Err(e))) => {
+                        *self = State::done();
+                        Some(Poll::Ready(Err(e.into())))
+                    }
+                }
+            },
+            State::FailImmediately(err) => {
+                // Put in a dummy error
+                let err = mem::replace(err, B2Error::ApiInconsistency(String::new()));
+                *self = State::done();
+                Some(Poll::Ready(Err(err)))
+            }
             State::Done(_) => {
                 panic!("poll on finished backblaze_b2::b2_future::B2Future");
             }

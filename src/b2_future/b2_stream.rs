@@ -1,17 +1,22 @@
-use bytes::Bytes;
-use futures::{Async, Future, Poll, Stream};
+use std::future::Future;
+use std::task::{Context, Poll};
+use std::pin::Pin;
+use futures::stream::Stream;
 use http::response::Parts;
 use http::StatusCode;
 use hyper::{client::ResponseFuture, Body};
-use serde::Deserialize;
-use serde_json::{from_reader, from_slice};
+use serde::de::DeserializeOwned;
+use serde_json::from_slice;
 
-use std::collections::VecDeque;
-use std::io::{Cursor, Read};
-use std::marker::PhantomData;
+use std::cmp::min;
 use std::mem;
 
-use B2Error;
+use crate::B2Error;
+
+#[path = "partial_json.rs"]
+mod partial_json;
+
+use self::partial_json::PartialJson;
 
 /// A stream that reads a json list from a `ResponseFuture` and parses each element with
 /// `serde_json`
@@ -27,18 +32,15 @@ enum State<T> {
     FailImmediately(B2Error),
     Done(),
 }
-// Body does not impl Sync, but since all access to the body happens through the poll
-// method on B2Stream which is a &mut method, only one thread can access the Body at
-// a time.
+// The ResponseFuture does not implement Sync, but since it can only be accessed through
+// &mut methods, it is not possible to synchronously access it.
 unsafe impl<T> Sync for State<T> {}
-// We don't actually contain any values of T, so sending this value doesn't send a value
-// of T. T is only used for return values.
+// The compiler adds a T: Send bound, but it is not needed as we don't store any Ts.
 unsafe impl<T> Send for State<T> {}
+// The compiler adds a T: Unpin bound, but it is not needed as we don't store any Ts.
+impl<T> Unpin for State<T> {}
 
-impl<T> B2Stream<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
+impl<T: DeserializeOwned> B2Stream<T> {
     /// Create a new `B2Stream`. The `capacity` is the initial size of the allocation
     /// meant to hold the body of the response.
     ///
@@ -62,272 +64,111 @@ where
         }
     }
 }
-impl<T> Stream for B2Stream<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
-    type Item = T;
-    type Error = B2Error;
-    fn poll(&mut self) -> Poll<Option<T>, B2Error> {
-        let mut state = mem::replace(&mut self.state, State::Done());
+impl<T: DeserializeOwned> Stream for B2Stream<T> {
+    type Item = Result<T, B2Error>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context)
+        -> Poll<Option<Result<T, B2Error>>>
+    {
+        let this = self.get_mut();
+        let cap = this.capacity;
+        let level = this.level;
+        let state_ref = &mut this.state;
         loop {
-            let (new_state, action) = state.poll(self.capacity, self.level);
-            state = new_state;
-            match action {
-                Action::Done(poll) => {
-                    self.state = state;
-                    return poll;
-                }
-                Action::Again() => {}
+            if let Some(poll) = state_ref.poll(cx, cap, level) {
+                return poll;
             }
         }
     }
 }
 
-enum Action<T> {
-    Done(Poll<Option<T>, B2Error>),
-    Again(),
-}
-
-impl<T> State<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
+impl<T: DeserializeOwned> State<T> {
     #[inline]
-    fn poll(self, cap: usize, level: u32) -> (State<T>, Action<T>) {
+    fn poll(&mut self, cx: &mut Context, cap: usize, level: u32)
+        -> Option<Poll<Option<Result<T, B2Error>>>>
+    {
         match self {
-            State::Connecting(mut fut) => match fut.poll() {
-                Ok(Async::NotReady) => {
-                    (State::Connecting(fut), Action::Done(Ok(Async::NotReady)))
-                }
-                Ok(Async::Ready(resp)) => {
-                    let (parts, body) = resp.into_parts();
-                    if parts.status == StatusCode::OK {
-                        (
-                            State::Collecting(body, PartialJson::new(cap, level)),
-                            Action::Again(),
-                        )
-                    } else {
-                        let size = crate::get_content_length(&parts);
-                        (
-                            State::CollectingError(parts, body, Vec::with_capacity(size)),
-                            Action::Again(),
-                        )
+            State::Connecting(ref mut fut) => {
+                match Pin::new(fut).poll(cx) {
+                    Poll::Pending => {
+                        Some(Poll::Pending)
+                    }
+                    Poll::Ready(Ok(resp)) => {
+                        let (parts, body) = resp.into_parts();
+                        if parts.status == StatusCode::OK {
+                            let json = PartialJson::new(cap, level);
+                            *self = State::Collecting(body, json);
+                        } else {
+                            let size = min(crate::get_content_length(&parts), 0x1000);
+                            *self = State::CollectingError(parts, body,
+                                                           Vec::with_capacity(size));
+                        }
+                        None
+                    }
+                    Poll::Ready(Err(e)) => {
+                        *self = State::Done();
+                        Some(Poll::Ready(Some(Err(e.into()))))
                     }
                 }
-                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
-            },
-            State::Collecting(mut body, mut partial) => match partial.next() {
-                Ok(Some(value)) => (
-                    State::Collecting(body, partial),
-                    Action::Done(Ok(Async::Ready(Some(value)))),
-                ),
-                Ok(None) => match body.poll() {
-                    Ok(Async::NotReady) => (
-                        State::Collecting(body, partial),
-                        Action::Done(Ok(Async::NotReady)),
-                    ),
-                    Ok(Async::Ready(Some(chunk))) => {
-                        partial.push(&chunk.into());
-                        (State::Collecting(body, partial), Action::Again())
-                    }
-                    Ok(Async::Ready(None)) => {
-                        (State::Done(), Action::Done(Ok(Async::Ready(None))))
-                    }
-                    Err(e) => (State::Done(), Action::Done(Err(e.into()))),
-                },
-                Err(e) => (State::Done(), Action::Done(Err(e))),
-            },
-            State::CollectingError(parts, mut body, mut bytes) => match body.poll() {
-                Ok(Async::NotReady) => (
-                    State::CollectingError(parts, body, bytes),
-                    Action::Done(Ok(Async::NotReady)),
-                ),
-                Ok(Async::Ready(Some(chunk))) => {
-                    bytes.extend(&chunk[..]);
-                    (State::CollectingError(parts, body, bytes), Action::Again())
+            }
+            State::Collecting(ref mut body, ref mut json) => match json.next() {
+                Ok(Some(value)) => {
+                    Some(Poll::Ready(Some(Ok(value))))
                 }
-                Ok(Async::Ready(None)) => match from_slice(&bytes) {
-                    Ok(err_msg) => {
-                        let err = B2Error::B2Error(parts.status, err_msg);
-                        (State::Done(), Action::Done(Err(err)))
+                Ok(None) => {
+                    match Pin::new(body).poll_next(cx) {
+                        Poll::Pending => Some(Poll::Pending),
+                        Poll::Ready(Some(Ok(chunk))) => {
+                            json.push(&chunk.into_bytes());
+                            None
+                        }
+                        Poll::Ready(None) => {
+                            Some(Poll::Ready(None))
+                        }
+                        Poll::Ready(Some(Err(e))) => {
+                            *self = State::Done();
+                            Some(Poll::Ready(Some(Err(e.into()))))
+                        }
                     }
-                    Err(e) => (State::Done(), Action::Done(Err(e.into()))),
-                },
-                Err(e) => (State::Done(), Action::Done(Err(e.into()))),
+                }
+                Err(err) => {
+                    *self = State::Done();
+                    Some(Poll::Ready(Some(Err(err.into()))))
+                }
             },
-            State::FailImmediately(err) => (State::Done(), Action::Done(Err(err))),
+            State::CollectingError(ref parts, ref mut body, ref mut bytes) => {
+                match Pin::new(body).poll_next(cx) {
+                    Poll::Pending => Some(Poll::Pending),
+                    Poll::Ready(Some(Ok(chunk))) => {
+                        bytes.extend(chunk.as_ref());
+                        None
+                    }
+                    Poll::Ready(None) => match from_slice(&bytes) {
+                        Ok(err_msg) => {
+                            let err = B2Error::B2Error(parts.status, err_msg);
+                            *self = State::Done();
+                            Some(Poll::Ready(Some(Err(err.into()))))
+                        }
+                        Err(err) => {
+                            *self = State::Done();
+                            Some(Poll::Ready(Some(Err(err.into()))))
+                        }
+                    },
+                    Poll::Ready(Some(Err(err))) => {
+                        *self = State::Done();
+                        Some(Poll::Ready(Some(Err(err.into()))))
+                    }
+                }
+            }
+            State::FailImmediately(err) => {
+                // Put in a dummy error
+                let err = mem::replace(err, B2Error::ApiInconsistency(String::new()));
+                *self = State::Done();
+                Some(Poll::Ready(Some(Err(err))))
+            }
             State::Done() => {
-                panic!("poll on finished backblaze_b2::b2_stream::B2Stream");
+                Some(Poll::Ready(None))
             }
         }
     }
 }
 
-struct PartialJson<T> {
-    buffer: VecDeque<u8>,
-    parens: u32,
-    level: u32,
-    in_string: bool,
-    last_was_escape: bool,
-    last_was_start: bool,
-    i: usize,
-    phantom: PhantomData<T>,
-}
-impl<T> PartialJson<T>
-where
-    for<'de> T: Deserialize<'de>,
-{
-    fn new(size: usize, level: u32) -> Self {
-        PartialJson {
-            buffer: VecDeque::with_capacity(size),
-            parens: 0,
-            level,
-            in_string: false,
-            last_was_escape: false,
-            last_was_start: false,
-            i: 0,
-            phantom: PhantomData,
-        }
-    }
-    fn push(&mut self, bytes: &Bytes) {
-        self.buffer.extend(&bytes[..]);
-    }
-    fn next_value(&mut self) -> Result<T, ::serde_json::Error> {
-        let i = self.i - 1;
-        let res = {
-            let (first, second) = self.buffer.as_slices();
-            if first.len() < i {
-                from_reader(
-                    Cursor::new(first).chain(Cursor::new(&second[0..i - first.len()])),
-                )
-            } else {
-                from_slice(&first[0..i])
-            }
-        };
-        for _ in self.buffer.drain(0..self.i) {}
-        self.i = 0;
-        res
-    }
-    fn next(&mut self) -> Result<Option<T>, B2Error> {
-        loop {
-            if self.i == self.buffer.len() {
-                return Ok(None);
-            }
-            let next_char = self.buffer[self.i] as char;
-            if self.parens < self.level {
-                self.buffer.pop_front();
-            } else {
-                self.i += 1;
-            }
-            if self.in_string {
-                if self.last_was_escape {
-                    self.last_was_escape = false;
-                } else if next_char == '"' {
-                    self.in_string = false;
-                } else if next_char == '\\' {
-                    self.last_was_escape = true;
-                }
-            } else {
-                match next_char {
-                    '[' => {
-                        self.parens += 1;
-                        self.last_was_start = self.parens == self.level;
-                    }
-                    '{' => {
-                        self.parens += 1;
-                        self.last_was_start = self.parens == self.level;
-                    }
-                    ',' => {
-                        self.last_was_start = false;
-                        if self.parens == self.level {
-                            return Ok(Some(self.next_value()?));
-                        }
-                    }
-                    '"' => {
-                        self.last_was_start = false;
-                        self.in_string = true;
-                    }
-                    ']' => {
-                        if self.parens == 0 {
-                            return Err(B2Error::api("Invalid json"));
-                        }
-                        self.parens -= 1;
-                        if self.parens == self.level - 1 && !self.last_was_start {
-                            return Ok(Some(self.next_value()?));
-                        }
-                        self.last_was_start = false;
-                    }
-                    '}' => {
-                        if self.parens == 0 {
-                            return Err(B2Error::api("Invalid json"));
-                        }
-                        self.parens -= 1;
-                        if self.parens == self.level - 1 && !self.last_was_start {
-                            return Ok(Some(self.next_value()?));
-                        }
-                        self.last_was_start = false;
-                    }
-                    other => {
-                        if !other.is_whitespace() {
-                            self.last_was_start = false;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::PartialJson;
-    use bytes::Bytes;
-    #[test]
-    fn partial_json_test() {
-        const JSON: &'static str = "[1, 2, 3, 4, 5]";
-        let mut json: PartialJson<u32> = PartialJson::new(100, 1);
-        json.push(&Bytes::from_static(JSON.as_bytes()));
-        let mut res = Vec::new();
-        while let Some(next) = json.next().unwrap() {
-            res.push(next);
-        }
-        assert_eq!(res, [1, 2, 3, 4, 5]);
-    }
-    #[test]
-    fn partial_json_test_2() {
-        const JSON: &'static str = "[[1,2,3],[1,2,3],[3,2,1]]";
-        for i in 1..JSON.len() {
-            let mut json: PartialJson<Vec<u32>> = PartialJson::new(0, 1);
-            let mut res = Vec::new();
-
-            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
-            while let Some(next) = json.next().unwrap() {
-                res.push(next);
-            }
-            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
-            while let Some(next) = json.next().unwrap() {
-                res.push(next);
-            }
-            assert_eq!(res, [vec![1, 2, 3], vec![1, 2, 3], vec![3, 2, 1]]);
-        }
-    }
-    #[test]
-    fn empty_json() {
-        const JSON: &'static str = "{[ \n]}";
-        for i in 1..JSON.len() {
-            let mut json: PartialJson<u8> = PartialJson::new(0, 2);
-            let mut res: Vec<u8> = Vec::new();
-
-            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
-            while let Some(next) = json.next().unwrap() {
-                res.push(next);
-            }
-            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
-            while let Some(next) = json.next().unwrap() {
-                res.push(next);
-            }
-            assert_eq!(res.len(), 0);
-        }
-    }
-}
