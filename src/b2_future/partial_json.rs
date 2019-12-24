@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use serde::de::DeserializeOwned;
 
 use serde_json::{from_reader, from_slice};
-use bytes::Bytes;
 use std::io::{Read, Cursor};
 
 use crate::B2Error;
@@ -31,8 +30,8 @@ impl<T: DeserializeOwned> PartialJson<T> {
             phantom: PhantomData,
         }
     }
-    pub fn push(&mut self, bytes: &Bytes) {
-        self.buffer.extend(&bytes[..]);
+    pub fn push(&mut self, bytes: &[u8]) {
+        self.buffer.extend(bytes);
     }
     fn next_value(&mut self) -> Result<T, ::serde_json::Error> {
         let i = self.i - 1;

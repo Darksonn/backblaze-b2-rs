@@ -3,6 +3,7 @@
 use std::future::Future;
 use std::task::{Context, Poll};
 use std::pin::Pin;
+use futures::future::FusedFuture;
 use futures::stream::Stream;
 use http::response::Parts;
 use http::StatusCode;
@@ -12,6 +13,7 @@ use serde::de::DeserializeOwned;
 use std::cmp::min;
 use std::marker::PhantomData;
 use std::mem;
+use std::fmt;
 
 use crate::B2Error;
 
@@ -36,6 +38,17 @@ unsafe impl<T> Send for State<T> {}
 // The compiler adds a T: Unpin bound, but it is not needed as we don't store any Ts.
 impl<T> Unpin for State<T> {}
 
+impl<T> fmt::Debug for B2Future<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.state {
+            State::Connecting(_) => f.pad("B2Future(connecting)"),
+            State::Collecting(_, _, _) => f.pad("B2Future(receiving)"),
+            State::FailImmediately(_) => f.pad("B2Future(failed)"),
+            State::Done(_) => f.pad("B2Future(done)"),
+        }
+    }
+}
+
 impl<T: DeserializeOwned> B2Future<T> {
     /// Create a new `B2Future`.
     pub fn new(inner: ResponseFuture) -> Self {
@@ -49,22 +62,23 @@ impl<T: DeserializeOwned> B2Future<T> {
             state: State::FailImmediately(err.into()),
         }
     }
-    /// Returns `true` if the future is done.
-    pub fn is_done(&self) -> bool {
-        match self.state {
-            State::Done(_) => true,
-            _ => false,
-        }
-    }
 }
 impl<T: DeserializeOwned> Future for B2Future<T> {
     type Output = Result<T, B2Error>;
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T, B2Error>> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, B2Error>> {
         let state_ref = &mut self.get_mut().state;
         loop {
             if let Some(poll) = state_ref.poll(cx) {
                 return poll;
             }
+        }
+    }
+}
+impl<T: DeserializeOwned> FusedFuture for B2Future<T> {
+    fn is_terminated(&self) -> bool {
+        match self.state {
+            State::Done(_) => true,
+            _ => false,
         }
     }
 }
@@ -77,7 +91,7 @@ impl<T: DeserializeOwned> State<T> {
     // Poll the state. This will advance the state machine at most once, so repeatedly
     // call it until it returns Some.
     #[inline]
-    fn poll(&mut self, cx: &mut Context) -> Option<Poll<Result<T, B2Error>>> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Option<Poll<Result<T, B2Error>>> {
         match self {
             State::Connecting(ref mut fut) => {
                 match Pin::new(fut).poll(cx) {

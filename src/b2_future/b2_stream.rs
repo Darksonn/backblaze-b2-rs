@@ -10,6 +10,7 @@ use serde_json::from_slice;
 
 use std::cmp::min;
 use std::mem;
+use std::fmt;
 
 use crate::B2Error;
 
@@ -40,6 +41,18 @@ unsafe impl<T> Send for State<T> {}
 // The compiler adds a T: Unpin bound, but it is not needed as we don't store any Ts.
 impl<T> Unpin for State<T> {}
 
+impl<T> fmt::Debug for B2Stream<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.state {
+            State::Connecting(_) => f.pad("B2Stream(connecting)"),
+            State::Collecting(_, _) => f.pad("B2Stream(receiving)"),
+            State::CollectingError(_, _, _) => f.pad("B2Stream(api error)"),
+            State::FailImmediately(_) => f.pad("B2Stream(failed)"),
+            State::Done() => f.pad("B2Stream(done)"),
+        }
+    }
+}
+
 impl<T: DeserializeOwned> B2Stream<T> {
     /// Create a new `B2Stream`. The `capacity` is the initial size of the allocation
     /// meant to hold the body of the response.
@@ -66,7 +79,7 @@ impl<T: DeserializeOwned> B2Stream<T> {
 }
 impl<T: DeserializeOwned> Stream for B2Stream<T> {
     type Item = Result<T, B2Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context)
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
         -> Poll<Option<Result<T, B2Error>>>
     {
         let this = self.get_mut();
@@ -83,7 +96,7 @@ impl<T: DeserializeOwned> Stream for B2Stream<T> {
 
 impl<T: DeserializeOwned> State<T> {
     #[inline]
-    fn poll(&mut self, cx: &mut Context, cap: usize, level: u32)
+    fn poll(&mut self, cx: &mut Context<'_>, cap: usize, level: u32)
         -> Option<Poll<Option<Result<T, B2Error>>>>
     {
         match self {
@@ -118,7 +131,7 @@ impl<T: DeserializeOwned> State<T> {
                     match Pin::new(body).poll_next(cx) {
                         Poll::Pending => Some(Poll::Pending),
                         Poll::Ready(Some(Ok(chunk))) => {
-                            json.push(&chunk.into_bytes());
+                            json.push(&chunk[..]);
                             None
                         }
                         Poll::Ready(None) => {

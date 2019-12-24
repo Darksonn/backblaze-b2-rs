@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use std::fmt;
 use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
+use http::header::{HeaderValue, InvalidHeaderValue};
 
 use serde::de::{Deserialize, Deserializer, Error, Unexpected, Visitor};
 use serde::ser::{Serialize, Serializer};
@@ -12,7 +13,6 @@ use serde::ser::{Serialize, Serializer};
 pub struct BytesString {
     inner: Bytes,
 }
-#[allow(len_without_is_empty)]
 impl BytesString {
     /// Creates a `BytesString` from the provided bytes.
     pub fn new(inner: Bytes) -> Result<BytesString, Utf8Error> {
@@ -29,6 +29,9 @@ impl BytesString {
     /// This method returns the length of the string.
     pub fn len(&self) -> usize {
         self.inner.len()
+    }
+    pub(crate) fn as_header(&self) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::from_maybe_shared(self.inner.clone())
     }
 }
 impl From<BytesString> for Bytes {
@@ -48,17 +51,17 @@ impl<'a> From<&'a str> for BytesString {
     fn from(v: &'a str) -> BytesString {
         // since self is a string, it is guaranteed to contain valid utf-8.
         BytesString {
-            inner: Bytes::from(v),
+            inner: Bytes::from(v.to_string()),
         }
     }
 }
 impl fmt::Display for BytesString {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_str(), f)
     }
 }
 impl fmt::Debug for BytesString {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)
     }
 }
@@ -81,14 +84,12 @@ struct BytesVisitor;
 impl<'de> Visitor<'de> for BytesVisitor {
     type Value = BytesString;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("a string.")
     }
 
     fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
-        Ok(BytesString {
-            inner: Bytes::from(v),
-        })
+        Ok(BytesString::from(v.to_string()))
     }
 
     fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {

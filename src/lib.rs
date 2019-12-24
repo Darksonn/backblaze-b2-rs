@@ -14,18 +14,18 @@
 //!
 //! [1]: https://www.backblaze.com/b2/docs/
 //! [2]: https://doc.rust-lang.org/std/mem/fn.drop.html
-// we ignore some clippy lints
-#![allow(unknown_lints)]
 
-#[macro_use]
-extern crate serde_derive;
+#![warn(rust_2018_idioms)]
 
 use hyper::StatusCode;
+use serde::Deserialize;
 use std::fmt;
 
 // pub mod api;
 // pub mod source;
 pub mod b2_future;
+pub mod client;
+pub mod auth;
 mod bytes_string;
 // pub mod prelude;
 // pub mod stream_util;
@@ -491,13 +491,23 @@ impl From<http::Error> for B2Error {
         B2Error::HttpError(err)
     }
 }
+impl From<http::header::InvalidHeaderValue> for B2Error {
+    fn from(err: http::header::InvalidHeaderValue) -> B2Error {
+        B2Error::HttpError(http::Error::from(err))
+    }
+}
+impl From<http::uri::InvalidUri> for B2Error {
+    fn from(err: http::uri::InvalidUri) -> B2Error {
+        B2Error::HttpError(http::Error::from(err))
+    }
+}
 impl From<std::io::Error> for B2Error {
     fn from(err: std::io::Error) -> B2Error {
         B2Error::IOError(err)
     }
 }
 impl fmt::Display for B2Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             B2Error::HyperError(err) => err.fmt(f),
             B2Error::HttpError(err) => err.fmt(f),
