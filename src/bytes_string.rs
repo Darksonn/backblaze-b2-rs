@@ -3,13 +3,13 @@ use std::fmt;
 use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
 use http::header::{HeaderValue, InvalidHeaderValue};
 
-use serde::de::{Deserialize, Deserializer, Error, Unexpected, Visitor};
+use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 
 /// A wrapper containing a [`Bytes`]. This type is guaranteed to contain valid utf-8.
 ///
 /// [`Bytes`]: https://carllerche.github.io/bytes/bytes/struct.Bytes.html
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BytesString {
     inner: Bytes,
 }
@@ -65,6 +65,12 @@ impl fmt::Debug for BytesString {
         fmt::Debug::fmt(self.as_str(), f)
     }
 }
+impl std::ops::Deref for BytesString {
+    type Target = str;
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
 impl Serialize for BytesString {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(self.as_str())
@@ -76,39 +82,8 @@ impl<'de> Deserialize<'de> for BytesString {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_string(BytesVisitor)
+        String::deserialize(deserializer)
+            .map(BytesString::from)
     }
 }
 
-struct BytesVisitor;
-impl<'de> Visitor<'de> for BytesVisitor {
-    type Value = BytesString;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a string.")
-    }
-
-    fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
-        Ok(BytesString::from(v.to_string()))
-    }
-
-    fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
-        Ok(BytesString::from(v))
-    }
-
-    fn visit_bytes<E: Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-        match from_utf8(v) {
-            Ok(s) => Ok(BytesString::from(s)),
-            Err(_) => Err(E::invalid_value(Unexpected::Bytes(v), &"a string")),
-        }
-    }
-
-    fn visit_byte_buf<E: Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
-        match from_utf8(&v[..]) {
-            Ok(_) => Ok(BytesString {
-                inner: Bytes::from(v),
-            }),
-            Err(_) => Err(E::invalid_value(Unexpected::Bytes(&v), &"a string")),
-        }
-    }
-}

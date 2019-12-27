@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::task::{Context, Poll};
 use std::pin::Pin;
-use futures::stream::Stream;
+use futures::stream::{Stream, FusedStream};
 use http::response::Parts;
 use http::StatusCode;
 use hyper::{client::ResponseFuture, Body};
@@ -21,10 +21,10 @@ use self::partial_json::PartialJson;
 
 /// A stream that reads a json list from a `ResponseFuture` and parses each element with
 /// `serde_json`
+#[must_use = "streams do nothing unless you poll them"]
 pub struct B2Stream<T> {
     state: State<T>,
     capacity: usize,
-    level: u32,
 }
 enum State<T> {
     Connecting(ResponseFuture),
@@ -56,16 +56,10 @@ impl<T> fmt::Debug for B2Stream<T> {
 impl<T: DeserializeOwned> B2Stream<T> {
     /// Create a new `B2Stream`. The `capacity` is the initial size of the allocation
     /// meant to hold the body of the response.
-    ///
-    /// The `level` is how far in the list starts. If the json just contains a list like
-    /// `[1,2,3]`, then the level should be 1, but if the json is wrapped in an object
-    /// with a single value, like in `{"buckets": [1,2,3]}` then a level of 2 would be
-    /// appropriate.
-    pub fn new(resp: ResponseFuture, capacity: usize, level: u32) -> Self {
+    pub fn new(resp: ResponseFuture, capacity: usize) -> Self {
         B2Stream {
             state: State::Connecting(resp),
             capacity,
-            level,
         }
     }
     /// Create a `B2Stream` that immediately fails with the specified error.
@@ -73,7 +67,48 @@ impl<T: DeserializeOwned> B2Stream<T> {
         B2Stream {
             state: State::FailImmediately(err.into()),
             capacity: 0,
-            level: 0,
+        }
+    }
+    /// Turn the provided `B2Future` into a `B2Stream`. This function arbitrarily
+    /// changes which type the data is parsed into, so it is up to you to ensure that the
+    /// new type is correct, or serde will fail deserialization.
+    pub fn from_b2_future<U>(fut: super::B2Future<U>, cap: usize) -> Self {
+        use super::State as FutState;
+        match fut.state {
+            FutState::Connecting(fut) => B2Stream {
+                state: State::Connecting(fut),
+                capacity: cap,
+            },
+            FutState::Collecting(parts, body, vec) =>
+                if parts.status == StatusCode::OK {
+                    let partial = PartialJson::from_vec(vec, 2);
+                    B2Stream {
+                        state: State::Collecting(body, partial),
+                        capacity: cap,
+                    }
+                } else {
+                    B2Stream {
+                        state: State::CollectingError(parts, body, vec),
+                        capacity: cap,
+                    }
+                },
+            FutState::FailImmediately(err) => B2Stream {
+                state: State::FailImmediately(err),
+                capacity: cap,
+            },
+            FutState::Done(_) => B2Stream {
+                state: State::Done(),
+                capacity: cap,
+            },
+        }
+    }
+}
+impl<T: DeserializeOwned> FusedStream for B2Stream<T> {
+    /// Returns `true` if this stream has completed.
+    fn is_terminated(&self) -> bool {
+        match self.state {
+            State::Done() => true,
+            _ => false,
         }
     }
 }
@@ -84,10 +119,9 @@ impl<T: DeserializeOwned> Stream for B2Stream<T> {
     {
         let this = self.get_mut();
         let cap = this.capacity;
-        let level = this.level;
         let state_ref = &mut this.state;
         loop {
-            if let Some(poll) = state_ref.poll(cx, cap, level) {
+            if let Some(poll) = state_ref.poll(cx, cap) {
                 return poll;
             }
         }
@@ -96,7 +130,7 @@ impl<T: DeserializeOwned> Stream for B2Stream<T> {
 
 impl<T: DeserializeOwned> State<T> {
     #[inline]
-    fn poll(&mut self, cx: &mut Context<'_>, cap: usize, level: u32)
+    fn poll(&mut self, cx: &mut Context<'_>, cap: usize)
         -> Option<Poll<Option<Result<T, B2Error>>>>
     {
         match self {
@@ -108,7 +142,7 @@ impl<T: DeserializeOwned> State<T> {
                     Poll::Ready(Ok(resp)) => {
                         let (parts, body) = resp.into_parts();
                         if parts.status == StatusCode::OK {
-                            let json = PartialJson::new(cap, level);
+                            let json = PartialJson::new(cap, 2);
                             *self = State::Collecting(body, json);
                         } else {
                             let size = min(crate::get_content_length(&parts), 0x1000);

@@ -1,11 +1,11 @@
-use serde::de::{self, Deserialize, Error, Unexpected, Visitor};
+use serde::de::{self, Deserialize, Visitor};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use std::fmt;
 
 /// The capabilities of a backblaze authorization.
 ///
 /// This type is serialized as a list of strings.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Capabilities {
     pub list_keys: bool,
     pub write_keys: bool,
@@ -18,7 +18,7 @@ pub struct Capabilities {
     pub share_files: bool,
     pub write_files: bool,
     pub delete_files: bool,
-    _no_exhaustive: (),
+    _non_exhaustive: (),
 }
 impl Capabilities {
     /// Create a new `Capabilities` with everything set to `false`.
@@ -35,7 +35,7 @@ impl Capabilities {
             share_files: false,
             write_files: false,
             delete_files: false,
-            _no_exhaustive: (),
+            _non_exhaustive: (),
         }
     }
     /// Create a new `Capabilities` with everything set to `true`.
@@ -52,11 +52,26 @@ impl Capabilities {
             share_files: true,
             write_files: true,
             delete_files: true,
-            _no_exhaustive: (),
+            _non_exhaustive: (),
         }
     }
     /// Returns the number of capabilities set to `true`.
-    pub fn len(self) -> usize {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use backblaze_b2::auth::Capabilities;
+    ///
+    /// let mut cap = Capabilities::empty();
+    /// cap.read_files = true;
+    ///
+    /// assert_eq!(cap.len(), 1);
+    ///
+    /// cap.write_files = true;
+    ///
+    /// assert_eq!(cap.len(), 2);
+    /// ```
+    pub fn len(&self) -> usize {
         self.list_keys as usize
             + self.write_keys as usize
             + self.delete_keys as usize
@@ -70,8 +85,112 @@ impl Capabilities {
             + self.delete_files as usize
     }
     /// Returns true if this key has no capabilities.
-    pub fn is_empty(self) -> bool {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use backblaze_b2::auth::Capabilities;
+    ///
+    /// let mut cap = Capabilities::empty();
+    ///
+    /// assert!(cap.is_empty());
+    ///
+    /// cap.read_files = true;
+    ///
+    /// assert!(!cap.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+    /// Iterate over the capabilities in this `Capabilities`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use backblaze_b2::auth::Capabilities;
+    ///
+    /// // Create our capabilities value.
+    /// let mut cap = Capabilities::empty();
+    /// cap.read_files = true;
+    ///
+    /// // Create a list from the iterator.
+    /// let list: Vec<&'static str> = cap.iter().collect();
+    /// assert_eq!(list, vec!["readFiles"]);
+    /// ```
+    pub fn iter(&self) -> CapabilitiesIter {
+        CapabilitiesIter { c: self.clone(), i: 0 }
+    }
+}
+
+impl IntoIterator for Capabilities {
+    type Item = &'static str;
+    type IntoIter = CapabilitiesIter;
+    fn into_iter(self) -> CapabilitiesIter {
+        self.iter()
+    }
+}
+impl<'a> IntoIterator for &'a Capabilities {
+    type Item = &'static str;
+    type IntoIter = CapabilitiesIter;
+    fn into_iter(self) -> CapabilitiesIter {
+        self.iter()
+    }
+}
+
+/// An iterator over a [`Capabilities`].
+///
+/// # Example
+///
+/// ```
+/// use backblaze_b2::auth::Capabilities;
+///
+/// // Create our capabilities value.
+/// let mut cap = Capabilities::empty();
+/// cap.read_files = true;
+///
+/// // Create a list from the iterator.
+/// let list: Vec<&'static str> = cap.iter().collect();
+/// assert_eq!(list, vec!["readFiles"]);
+/// ```
+///
+/// [`Capabilities`]: struct.Capabilities.html
+#[derive(Clone, Debug)]
+pub struct CapabilitiesIter {
+    c: Capabilities,
+    i: u8,
+}
+impl Iterator for CapabilitiesIter {
+    type Item = &'static str;
+    /// Returns the next capability.
+    #[inline]
+    fn next(&mut self) -> Option<&'static str> {
+        loop {
+            self.i = self.i.wrapping_add(1);
+            match self.i {
+                1 => if self.c.list_keys { return Some("listKeys"); },
+                2 => if self.c.write_keys { return Some("writeKeys"); },
+                3 => if self.c.delete_keys { return Some("deleteKeys"); },
+                4 => if self.c.list_buckets { return Some("listBuckets"); },
+                5 => if self.c.write_buckets { return Some("writeBuckets"); },
+                6 => if self.c.delete_buckets { return Some("deleteBuckets"); },
+                7 => if self.c.list_files { return Some("listFiles"); },
+                8 => if self.c.read_files { return Some("readFiles"); },
+                9 => if self.c.share_files { return Some("shareFiles"); },
+                10 => if self.c.write_files { return Some("writeFiles"); },
+                11 => if self.c.delete_files { return Some("deleteFiles"); },
+                _ => return None,
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Capabilities {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut list = f.debug_list();
+        for cap in self.iter() {
+            list.entry(&cap);
+        }
+        list.finish()
     }
 }
 
@@ -85,38 +204,8 @@ impl Default for Capabilities {
 impl Serialize for Capabilities {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_seq(Some(self.len()))?;
-        if self.list_keys {
-            seq.serialize_element("listKeys")?;
-        }
-        if self.write_keys {
-            seq.serialize_element("writeKeys")?;
-        }
-        if self.delete_keys {
-            seq.serialize_element("deleteKeys")?;
-        }
-        if self.list_buckets {
-            seq.serialize_element("listBuckets")?;
-        }
-        if self.write_buckets {
-            seq.serialize_element("writeBuckets")?;
-        }
-        if self.delete_buckets {
-            seq.serialize_element("deleteBuckets")?;
-        }
-        if self.list_files {
-            seq.serialize_element("listFiles")?;
-        }
-        if self.read_files {
-            seq.serialize_element("readFiles")?;
-        }
-        if self.share_files {
-            seq.serialize_element("shareFiles")?;
-        }
-        if self.write_files {
-            seq.serialize_element("writeFiles")?;
-        }
-        if self.delete_files {
-            seq.serialize_element("deleteFiles")?;
+        for cap in self.iter() {
+            seq.serialize_element(cap)?;
         }
         seq.end()
     }

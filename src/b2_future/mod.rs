@@ -21,6 +21,7 @@ mod b2_stream;
 pub use self::b2_stream::B2Stream;
 
 /// A future that reads all data from a hyper future and parses it with `serde_json`.
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct B2Future<T> {
     state: State<T>,
 }
@@ -65,6 +66,7 @@ impl<T: DeserializeOwned> B2Future<T> {
 }
 impl<T: DeserializeOwned> Future for B2Future<T> {
     type Output = Result<T, B2Error>;
+    /// Attempt to resolve the future to a final value.
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, B2Error>> {
         let state_ref = &mut self.get_mut().state;
         loop {
@@ -75,6 +77,7 @@ impl<T: DeserializeOwned> Future for B2Future<T> {
     }
 }
 impl<T: DeserializeOwned> FusedFuture for B2Future<T> {
+    /// Returns `true` if this future has completed.
     fn is_terminated(&self) -> bool {
         match self.state {
             State::Done(_) => true,

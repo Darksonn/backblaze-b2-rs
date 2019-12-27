@@ -1,19 +1,6 @@
 //! A library for interacting with the [backblaze b2 api][1].
 //!
-//! # Deadlocks
-//!
-//! A common problem when using this crate is that when you attempt to shut down the tokio
-//! runtime, it will run forever.
-//!
-//! The reason for this is that the client creates some futures that don't complete until
-//! the client has been dropped, but the runtime is shut down before the client has been
-//! dropped.
-//!
-//! The solution is therefore to ensure that the client has been [dropped][2] _before_
-//! calling the shutdown method.
-//!
 //! [1]: https://www.backblaze.com/b2/docs/
-//! [2]: https://doc.rust-lang.org/std/mem/fn.drop.html
 
 #![warn(rust_2018_idioms)]
 
@@ -26,6 +13,7 @@ use std::fmt;
 pub mod b2_future;
 pub mod client;
 pub mod auth;
+pub mod buckets;
 mod bytes_string;
 // pub mod prelude;
 // pub mod stream_util;

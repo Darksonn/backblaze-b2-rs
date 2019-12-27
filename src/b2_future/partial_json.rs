@@ -30,6 +30,12 @@ impl<T: DeserializeOwned> PartialJson<T> {
             phantom: PhantomData,
         }
     }
+    pub fn from_vec(vec: Vec<u8>, level: u32) -> Self {
+        let mut res = Self::new(0, level);
+        // try to reuse allocation
+        res.buffer = VecDeque::from(vec);
+        res
+    }
     pub fn push(&mut self, bytes: &[u8]) {
         self.buffer.extend(bytes);
     }
@@ -122,12 +128,12 @@ impl<T: DeserializeOwned> PartialJson<T> {
 #[cfg(test)]
 mod tests {
     use super::PartialJson;
-    use bytes::Bytes;
+    use serde::Deserialize;
     #[test]
     fn partial_json_test() {
         const JSON: &'static str = "[1, 2, 3, 4, 5]";
         let mut json: PartialJson<u32> = PartialJson::new(100, 1);
-        json.push(&Bytes::from_static(JSON.as_bytes()));
+        json.push(JSON.as_bytes());
         let mut res = Vec::new();
         while let Some(next) = json.next().unwrap() {
             res.push(next);
@@ -138,7 +144,7 @@ mod tests {
     fn partial_json_test_object() {
         const JSON: &'static str = "{list: [1, 2, 3, 4, 5]}";
         let mut json: PartialJson<u32> = PartialJson::new(100, 2);
-        json.push(&Bytes::from_static(JSON.as_bytes()));
+        json.push(JSON.as_bytes());
         let mut res = Vec::new();
         while let Some(next) = json.next().unwrap() {
             res.push(next);
@@ -158,7 +164,7 @@ mod tests {
                 { "a": "test2", "b": [3, 4]}
             ]}"#;
         let mut json: PartialJson<Item> = PartialJson::new(100, 2);
-        json.push(&Bytes::from_static(JSON.as_bytes()));
+        json.push(JSON.as_bytes());
         let mut res = Vec::new();
         while let Some(next) = json.next().unwrap() {
             res.push(next);
@@ -180,11 +186,11 @@ mod tests {
             let mut json: PartialJson<Vec<u32>> = PartialJson::new(0, 1);
             let mut res = Vec::new();
 
-            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
+            json.push(&JSON.as_bytes()[..i]);
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
-            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
+            json.push(&JSON.as_bytes()[i..]);
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
@@ -198,11 +204,11 @@ mod tests {
             let mut json: PartialJson<u8> = PartialJson::new(0, 2);
             let mut res: Vec<u8> = Vec::new();
 
-            json.push(&Bytes::from_static(&JSON.as_bytes()[..i]));
+            json.push(&JSON.as_bytes()[..i]);
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }
-            json.push(&Bytes::from_static(&JSON.as_bytes()[i..]));
+            json.push(&JSON.as_bytes()[i..]);
             while let Some(next) = json.next().unwrap() {
                 res.push(next);
             }

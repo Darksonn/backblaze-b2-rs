@@ -28,20 +28,11 @@ features = ["serde"]
 version = "1.0"
 features = ["derive"]
 
-[dependencies.tokio]
-version = "0.2.5"
-features = ["full"]
-default-features = false
-
-[dependencies.tokio-util]
-version = "0.2.0"
-features = ["codec"]
-default-features = false
-
 [dependencies.hyper]
 version = "0.13.1"
 features = ["stream"]
 default-features = false
 
 [dev-dependencies]
-rand = "0.5"
+rand = "0.7"
+tokio = { version = "0.2", features = ["macros", "rt-core"] }

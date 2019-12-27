@@ -1,3 +1,5 @@
+//! The client used for executing api calls.
+
 use hyper_tls::HttpsConnector;
 use hyper::client::{Client, HttpConnector, ResponseFuture};
 use hyper::Body;
@@ -33,6 +35,11 @@ impl B2Client {
     }
     /// This function starts the provided api call. As this returns a future, you will
     /// need to await it to obtain the resulting value.
+    ///
+    /// Note that `ApiCall` provides [a blanket implementation for references][1], so
+    /// this function can take the api call by both reference and value.
+    ///
+    /// [1]: trait.ApiCall.html#impl-ApiCall-for-%26%27a%20A
     pub fn send<Api: ApiCall>(&mut self, api: Api) -> Api::Future {
         let url = match api.url() {
             Ok(url) => url,
@@ -77,12 +84,13 @@ pub trait ApiCall {
     /// The body of the request.
     fn body(&self) -> Result<Body, B2Error>;
     /// Wrap the `ResponseFuture` in a future that handles the response.
-    fn finalize(&self, fut: ResponseFuture) -> Self::Future;
+    fn finalize(self, fut: ResponseFuture) -> Self::Future;
     /// Create a future that immediately fails with the supplied error.
-    fn error(&self, err: B2Error) -> Self::Future;
+    fn error(self, err: B2Error) -> Self::Future;
 }
 
 #[inline]
 pub(crate) fn serde_body<T: Serialize + ?Sized>(body: &T) -> Result<Body, B2Error> {
-    Ok(Body::from(serde_json::to_vec(body)?))
+    let body = serde_json::to_vec(body)?;
+    Ok(Body::from(body))
 }
