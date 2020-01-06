@@ -65,6 +65,7 @@ use std::convert::TryFrom;
 /// [`ListKeys`]: struct.ListKeys.html
 /// [`start_key_id`]: struct.ListKeys.html#method.start_key_id
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct ListKeysResponse {
     pub keys: Vec<Key>,
     #[serde(rename = "nextApplicationKeyId")]

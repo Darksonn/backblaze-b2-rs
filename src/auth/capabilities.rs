@@ -6,6 +6,7 @@ use std::fmt;
 ///
 /// This type is serialized as a list of strings.
 #[derive(Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Capabilities {
     pub list_keys: bool,
     pub write_keys: bool,
@@ -18,7 +19,6 @@ pub struct Capabilities {
     pub share_files: bool,
     pub write_files: bool,
     pub delete_files: bool,
-    _non_exhaustive: (),
 }
 impl Capabilities {
     /// Create a new `Capabilities` with everything set to `false`.
@@ -35,7 +35,6 @@ impl Capabilities {
             share_files: false,
             write_files: false,
             delete_files: false,
-            _non_exhaustive: (),
         }
     }
     /// Create a new `Capabilities` with everything set to `true`.
@@ -52,7 +51,6 @@ impl Capabilities {
             share_files: true,
             write_files: true,
             delete_files: true,
-            _non_exhaustive: (),
         }
     }
     /// Returns the number of capabilities set to `true`.

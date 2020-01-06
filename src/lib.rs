@@ -1,5 +1,16 @@
 //! A library for interacting with the [backblaze b2 api][1].
 //!
+//! # Backwards compatibility
+//!
+//! Since the b2 api does not consider adding fields to any response type a breaking
+//! change, neither does this library meaning that most types are marked non
+//! exhaustive.
+//!
+//! That said, this library does provide one guarantee regarding new fields: adding
+//! new fields without a default value on deserialization is considered breaking.
+//! This means that serializing a value and deserializing it later will never fail
+//! unless a breaking change has been introduced since it was serialized.
+//!
 //! [1]: https://www.backblaze.com/b2/docs/
 
 #![warn(rust_2018_idioms)]
@@ -14,6 +25,7 @@ pub mod b2_future;
 pub mod client;
 pub mod auth;
 pub mod buckets;
+pub mod files;
 mod bytes_string;
 // pub mod prelude;
 // pub mod stream_util;

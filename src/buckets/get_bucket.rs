@@ -133,7 +133,7 @@ impl<'a> ApiCall for GetBucket<'a> {
 }
 
 #[derive(Deserialize)]
-pub struct GetBucketResponse {
+struct GetBucketResponse {
     #[serde(deserialize_with = "list_as_option")]
     buckets: Option<Bucket>,
 }

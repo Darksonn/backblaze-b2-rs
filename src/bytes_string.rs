@@ -9,7 +9,7 @@ use serde::ser::{Serialize, Serializer};
 /// A wrapper containing a [`Bytes`]. This type is guaranteed to contain valid utf-8.
 ///
 /// [`Bytes`]: https://carllerche.github.io/bytes/bytes/struct.Bytes.html
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct BytesString {
     inner: Bytes,
 }

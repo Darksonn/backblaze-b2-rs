@@ -146,6 +146,7 @@ impl From<BytesString> for Secret {
 /// [`CreateKey`]: struct.CreateKey.html
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct KeyWithSecret {
     pub account_id: BytesString,
     pub key_name: String,
@@ -163,6 +164,7 @@ pub struct KeyWithSecret {
 /// See the module level documentation for examples.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct Key {
     pub account_id: BytesString,
     pub key_name: String,

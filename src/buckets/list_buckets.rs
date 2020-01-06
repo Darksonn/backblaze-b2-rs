@@ -133,7 +133,7 @@ impl<'a> ApiCall for ListBuckets<'a> {
 }
 
 #[derive(Deserialize)]
-pub struct ListBucketsResponse {
+struct ListBucketsResponse {
     buckets: Vec<Bucket>,
 }
 

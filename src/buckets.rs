@@ -40,6 +40,7 @@ pub use self::update_bucket::UpdateBucket;
 /// [1]: https://www.backblaze.com/b2/docs/lifecycle_rules.html
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct LifecycleRule {
     pub days_from_uploading_to_hiding: Option<u32>,
     pub days_from_hiding_to_deleting: Option<u32>,
@@ -52,6 +53,7 @@ pub struct LifecycleRule {
 /// [1]: https://www.backblaze.com/b2/docs/cors_rules.html
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct CorsRule {
     /// A name for humans to recognize the rule in a user interface. Names must
     /// be unique within a bucket. Names can consist of upper-case and
@@ -116,6 +118,7 @@ pub struct CorsRule {
 /// [1]: https://www.backblaze.com/b2/docs/buckets.html
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct Bucket {
     pub account_id: String,
     pub bucket_id: String,
