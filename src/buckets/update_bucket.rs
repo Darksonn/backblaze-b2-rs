@@ -162,7 +162,7 @@ impl<'a, I: Serialize> UpdateBucket<'a, I> {
 struct UpdateBucketRequest<'a, Info> {
     account_id: &'a BytesString,
     bucket_id: &'a str,
-    bucket_type: Option<BucketType>,
+    bucket_type: Option<&'a BucketType>,
     bucket_info: Option<&'a Info>,
     cors_rules: Option<&'a [CorsRule]>,
     lifecycle_rules: Option<&'a [LifecycleRule]>,
@@ -185,7 +185,7 @@ impl<'a, Info: Serialize> ApiCall for UpdateBucket<'a, Info> {
         serde_body(&UpdateBucketRequest {
             account_id: &self.auth.account_id,
             bucket_id: &self.bucket_id,
-            bucket_type: self.bucket_type,
+            bucket_type: self.bucket_type.as_ref(),
             bucket_info: self.bucket_info.as_ref(),
             cors_rules: self.cors_rules,
             lifecycle_rules: self.lifecycle_rules,

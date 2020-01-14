@@ -130,7 +130,7 @@ impl<'a, I: Serialize> CreateBucket<'a, I> {
 struct CreateBucketRequest<'a, Info> {
     account_id: &'a BytesString,
     bucket_name: &'a str,
-    bucket_type: BucketType,
+    bucket_type: &'a BucketType,
     bucket_info: &'a Info,
     cors_rules: &'a [CorsRule],
     lifecycle_rules: &'a [LifecycleRule],
@@ -152,7 +152,7 @@ impl<'a, Info: Serialize> ApiCall for CreateBucket<'a, Info> {
         serde_body(&CreateBucketRequest {
             account_id: &self.auth.account_id,
             bucket_name: &self.bucket_name,
-            bucket_type: self.bucket_type,
+            bucket_type: &self.bucket_type,
             bucket_info: &self.bucket_info,
             cors_rules: &self.cors_rules,
             lifecycle_rules: &self.lifecycle_rules,
