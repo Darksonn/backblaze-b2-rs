@@ -93,7 +93,7 @@ impl<'a> ApiCall for DeleteBucket<'a> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&DeleteBucketRequest {
             account_id: &self.auth.account_id,
             bucket_id: &self.bucket_id,

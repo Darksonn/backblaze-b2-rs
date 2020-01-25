@@ -1,36 +1,38 @@
-use crate::auth::B2Authorization;
-use crate::files::File;
 use crate::files::upload::{UploadUrl, UploadFileInfo, SimpleFileInfo};
 
 use serde::Serialize;
 
 use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
-use http::header::HeaderMap;
+use crate::client::ApiCall;
+use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::method::Method;
 use http::uri::Uri;
 use hyper::Body;
 use hyper::client::ResponseFuture;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 /// The [`b2_upload_file`] api call.
 ///
 /// You can execute this api call using a [`B2Client`], which will result in a
 /// [`File`] if successful.
 ///
-/// [`b2_get_upload_url`]: https://www.backblaze.com/b2/docs/b2_get_upload_url.html
+/// [`b2_upload_file`]: https://www.backblaze.com/b2/docs/b2_upload_file.html
 /// [`B2Client`]: ../../client/struct.B2Client.html
 /// [`File`]: ../struct.File.html
-#[derive(Clone, Debug)]
-pub struct UploadFile<'a, Info: UploadFileInfo> {
+#[derive(Debug)]
+pub struct UploadFile<'a, Info: UploadFileInfo<'a>> {
     url: &'a UploadUrl,
     file_name: &'a str,
     content_type: &'a str,
     content_length: u64,
     content_sha1: &'a str,
-    info: Info,
+    info: &'a Info,
+    body: Option<Body>,
 }
+
+static DEFAULT_INFO: SimpleFileInfo = SimpleFileInfo::new();
+
 impl<'a> UploadFile<'a, SimpleFileInfo> {
     /// Create an api call to request an upload url for the specified bucket.
     pub fn new(
@@ -39,6 +41,7 @@ impl<'a> UploadFile<'a, SimpleFileInfo> {
         content_type: &'a str,
         content_length: u64,
         content_sha1: &'a str,
+        body: Body,
     ) -> Self {
         UploadFile {
             url,
@@ -46,7 +49,25 @@ impl<'a> UploadFile<'a, SimpleFileInfo> {
             content_type,
             content_length,
             content_sha1,
-            info: SimpleFileInfo::new(),
+            body: Some(body),
+            info: &DEFAULT_INFO,
+        }
+    }
+}
+impl<'a, Info: UploadFileInfo<'a>> UploadFile<'a, Info> {
+    /// Create an api call to request an upload url for the specified bucket.
+    pub fn with_info<NewInfo: UploadFileInfo<'a>>(
+        self,
+        info: &'a NewInfo,
+    ) -> UploadFile<'a, NewInfo> {
+        UploadFile {
+            url: self.url,
+            file_name: self.file_name,
+            content_type: self.content_type,
+            content_length: self.content_length,
+            content_sha1: self.content_sha1,
+            body: self.body,
+            info,
         }
     }
 }
@@ -57,22 +78,35 @@ struct GetUploadUrlRequest<'a> {
     bucket_id: &'a str,
 }
 
-impl<'a> ApiCall for GetUploadUrl<'a> {
+impl<'a, Info: UploadFileInfo<'a>> ApiCall for UploadFile<'a, Info> {
     type Future = B2Future<UploadUrl>;
     const METHOD: Method = Method::POST;
     fn url(&self) -> Result<Uri, B2Error> {
-        Uri::try_from(format!("{}/b2api/v2/b2_get_upload_url", self.auth.api_url))
-            .map_err(B2Error::from)
+        Uri::try_from(self.url.upload_url.as_str()).map_err(B2Error::from)
     }
     fn headers(&self) -> Result<HeaderMap, B2Error> {
         let mut map = HeaderMap::new();
-        map.append("Authorization", self.auth.auth_token());
+        let mut buf = self.content_length.to_string();
+        map.append("Authorization", self.url.auth_token());
+        map.append("X-Bz-File-Name", self.file_name.try_into()?);
+        map.append("Content-Type", self.content_type.try_into()?);
+        map.append("Content-Length", buf.as_str().try_into()?);
+        map.append("X-Bz-Content-Sha1", self.content_sha1.try_into()?);
+
+        for (key, val) in self.info.as_iter() {
+            buf.clear();
+            buf.reserve("X-Bz-Info-".len() + key.len());
+            buf.push_str("X-Bz-Info-");
+            buf.push_str(key);
+            map.append(
+                HeaderName::from_bytes(buf.as_bytes())?,
+                HeaderValue::from_str(val)?,
+            );
+        }
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
-        serde_body(&GetUploadUrlRequest {
-            bucket_id: self.bucket_id,
-        })
+    fn body(&mut self) -> Result<Body, B2Error> {
+         Ok(self.body.take().expect("body() called twice on UploadFile"))
     }
     fn finalize(self, fut: ResponseFuture) -> B2Future<UploadUrl> {
         B2Future::new(fut)

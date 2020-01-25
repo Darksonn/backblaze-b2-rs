@@ -56,7 +56,6 @@ impl std::str::FromStr for Action {
     }
 }
 
-static ACTION_TYPES: [&'static str; 4] = ["upload", "start", "hide", "folder"];
 struct ActionVisitor;
 impl<'de> Visitor<'de> for ActionVisitor {
     type Value = Action;

@@ -181,7 +181,7 @@ impl<'a, Info: Serialize> ApiCall for UpdateBucket<'a, Info> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&UpdateBucketRequest {
             account_id: &self.auth.account_id,
             bucket_id: &self.bucket_id,

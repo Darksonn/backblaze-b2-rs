@@ -47,7 +47,6 @@ impl std::str::FromStr for BucketType {
     }
 }
 
-static BUCKET_TYPES: [&'static str; 3] = ["allPublic", "allPrivate", "snapshot"];
 struct BucketTypeVisitor;
 impl<'de> Visitor<'de> for BucketTypeVisitor {
     type Value = BucketType;

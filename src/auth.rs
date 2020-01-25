@@ -206,7 +206,7 @@ impl<'a> ApiCall for AuthorizeAccount<'a> {
         map.append("Authorization", header);
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         Ok(Body::empty())
     }
     fn finalize(self, fut: ResponseFuture) -> AuthFuture {
@@ -317,7 +317,7 @@ impl FusedFuture for AuthFuture {
 #[non_exhaustive]
 pub struct B2Authorization {
     pub account_id: BytesString,
-    #[serde(with = "header_serde")]
+    #[serde(with = "crate::header_serde")]
     pub authorization_token: HeaderValue,
     pub api_url: BytesString,
     pub download_url: BytesString,
@@ -342,26 +342,3 @@ impl B2Authorization {
     }
 }
 
-mod header_serde {
-    use crate::BytesString;
-    use serde::{Deserialize, Serialize};
-    use serde::de::Deserializer;
-    use serde::ser::Serializer;
-    use http::header::HeaderValue;
-
-    pub fn serialize<S>(header: &HeaderValue, s: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        let v = header.to_str()
-            .map_err(|err| <S::Error as serde::ser::Error>::custom(err))?;
-        v.serialize(s)
-    }
-
-    pub fn deserialize<'de, D>(d: D) -> Result<HeaderValue, D::Error>
-        where D: Deserializer<'de>
-    {
-        BytesString::deserialize(d)?
-            .as_header()
-            .map_err(|err| <D::Error as serde::de::Error>::custom(err))
-    }
-}

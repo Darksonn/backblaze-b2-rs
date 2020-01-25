@@ -40,14 +40,20 @@ impl B2Client {
     /// this function can take the api call by both reference and value.
     ///
     /// [1]: trait.ApiCall.html#impl-ApiCall-for-%26%27a%20A
-    pub fn send<Api: ApiCall>(&mut self, api: Api) -> Api::Future {
+    pub fn send<Api: ApiCall>(&mut self, mut api: Api) -> Api::Future {
         let url = match api.url() {
             Ok(url) => url,
             Err(err) => return api.error(err),
         };
+
         let mut builder = Builder::new()
             .method(Api::METHOD)
             .uri(url);
+
+        // If headers_mut returns None, then the call to body() below will fail
+        // with an Err(err), in turn resulting in this method returning an error.
+        //
+        // This can happen if the method or url is invalid.
         if let Some(headers_mut) = builder.headers_mut() {
             match api.headers() {
                 Ok(headers) => {
@@ -56,6 +62,7 @@ impl B2Client {
                 Err(err) => return api.error(err),
             }
         }
+
         match api.body().and_then(|body| builder.body(body).map_err(B2Error::from)) {
             Ok(request) => api.finalize(self.inner.request(request)),
             Err(err) => api.error(err),
@@ -81,8 +88,11 @@ pub trait ApiCall {
     fn url(&self) -> Result<Uri, B2Error>;
     /// Any headers needed by the request.
     fn headers(&self) -> Result<HeaderMap<HeaderValue>, B2Error>;
-    /// The body of the request.
-    fn body(&self) -> Result<Body, B2Error>;
+    /// The body of the request. Calling this twice is not allowed and may panic.
+    ///
+    /// This method does not take the api call by value to allow calling `finalize`
+    /// or `error` afterwards.
+    fn body(&mut self) -> Result<Body, B2Error>;
     /// Wrap the `ResponseFuture` in a future that handles the response.
     fn finalize(self, fut: ResponseFuture) -> Self::Future;
     /// Create a future that immediately fails with the supplied error.

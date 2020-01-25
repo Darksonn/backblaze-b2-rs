@@ -54,7 +54,7 @@ impl<'a> ApiCall for GetFileInfo<'a> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&GetFileInfoRequest {
             file_id: self.file_id,
         })

@@ -1,4 +1,3 @@
-use crate::BytesString;
 use crate::auth::B2Authorization;
 use crate::files::File;
 
@@ -147,7 +146,7 @@ impl<'a> ApiCall for ListFileNames<'a> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&ListFileNamesRequest {
             bucket_id: &self.bucket_id,
             start_file_name: self.start_file_name,

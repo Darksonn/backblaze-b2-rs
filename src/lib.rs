@@ -40,6 +40,30 @@ fn get_content_length(parts: &http::response::Parts) -> usize {
         .unwrap_or(0)
 }
 
+mod header_serde {
+    use crate::BytesString;
+    use serde::{Deserialize, Serialize};
+    use serde::de::Deserializer;
+    use serde::ser::Serializer;
+    use http::header::HeaderValue;
+
+    pub fn serialize<S>(header: &HeaderValue, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let v = header.to_str()
+            .map_err(|err| <S::Error as serde::ser::Error>::custom(err))?;
+        v.serialize(s)
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<HeaderValue, D::Error>
+        where D: Deserializer<'de>
+    {
+        BytesString::deserialize(d)?
+            .as_header()
+            .map_err(|err| <D::Error as serde::de::Error>::custom(err))
+    }
+}
+
 /// The b2 api returns errors in a json-object, that can be deserialized into this struct.
 ///
 /// This struct is usually contained in a [`B2Error`].
@@ -76,6 +100,7 @@ pub struct B2ErrorMessage {
 ///  [`is_authorization_issue`]: #method.is_authorization_issue
 ///  [`is_snapshot_interaction_failure`]: #method.is_snapshot_interaction_failure
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum B2Error {
     HyperError(hyper::error::Error),
     HttpError(http::Error),
@@ -489,6 +514,11 @@ impl From<hyper::error::Error> for B2Error {
 impl From<http::Error> for B2Error {
     fn from(err: http::Error) -> B2Error {
         B2Error::HttpError(err)
+    }
+}
+impl From<http::header::InvalidHeaderName> for B2Error {
+    fn from(err: http::header::InvalidHeaderName) -> B2Error {
+        B2Error::HttpError(http::Error::from(err))
     }
 }
 impl From<http::header::InvalidHeaderValue> for B2Error {

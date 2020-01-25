@@ -27,7 +27,7 @@ pub struct SimpleFileInfo {
 }
 impl SimpleFileInfo {
     /// Create a new simple file info.
-    pub fn new() -> SimpleFileInfo {
+    pub const fn new() -> SimpleFileInfo {
         SimpleFileInfo {
             last_modified: None,
             content_disposition: None,

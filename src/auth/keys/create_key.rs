@@ -136,7 +136,7 @@ impl<'a> ApiCall for CreateKey<'a> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&CreateKeyRequest {
             account_id: &self.auth.account_id,
             capabilities: &self.capabilities,

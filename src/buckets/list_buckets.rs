@@ -118,7 +118,7 @@ impl<'a> ApiCall for ListBuckets<'a> {
         map.append("Authorization", self.auth.auth_token());
         Ok(map)
     }
-    fn body(&self) -> Result<Body, B2Error> {
+    fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&ListBucketsRequest {
             account_id: &self.auth.account_id,
             bucket_types: self.bucket_types,
