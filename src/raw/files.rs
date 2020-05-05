@@ -107,6 +107,29 @@ pub struct FileVersionListing<InfoType=JsonValue> {
     pub unfinished_large_files: Vec<UnfinishedLargeFileInfo<InfoType>>,
 }
 
+/// `metadataDirective` field for `bg_copy_file` api
+#[derive(Serialize,Deserialize,Debug,Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum MetadataDirective {
+    Replace,
+    Copy,
+}
+
+impl fmt::Display for MetadataDirective {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.to_str())
+    }
+}
+
+impl MetadataDirective {
+    fn to_str(&self) -> &str {
+        match self {
+            MetadataDirective::Copy => "COPY",
+            MetadataDirective::Replace => "REPLACE",
+        }
+    }
+}
+
 /// Methods related to the [files module][1].
 ///
 ///  [1]: ../files/index.html
@@ -501,6 +524,53 @@ impl B2Authorization {
             Ok(())
         }
     }
+
+
+    /// Performs a [b2_copy_file][1] api call.
+    ///
+    /// # Errors
+    /// This function returns a [`B2Error`] in case something goes wrong. Besides the standard
+    /// errors, this function can fail with [`is_file_not_found`].
+    ///
+    ///  [1]: https://www.backblaze.com/b2/docs/b2_copy_file.html
+    ///  [`B2Error`]: ../authorize/enum.B2Error.html
+    ///  [`is_file_not_found`]: ../../enum.B2Error.html#method.is_file_not_found
+    pub fn copy_file(&self, source_file_id: &str, file_name: &str, bucket_id: Option<&str>, metadata_directive: MetadataDirective, content_type: Option<&str>, client: &Client)
+        -> Result<MoreFileInfo,B2Error>
+    {
+        let url_string: String = format!("{}/b2api/v1/b2_delete_file", self.api_url);
+        let url: &str = &url_string;
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Request<'a> {
+            source_file_id: &'a str,
+            file_name: &'a str,
+            bucket_id: Option<&'a str>,
+            metadata_directive: &'a str,
+            content_type: Option<&'a str>,
+        }
+        let request = Request {
+            source_file_id,
+            file_name,
+            bucket_id,
+            metadata_directive: metadata_directive.to_str(),
+            content_type,
+        };
+        let body: String = serde_json::to_string(&request)?;
+
+        let resp = client.post(url)
+            .body(Body::BufBody(body.as_bytes(), body.len()))
+            .header(self.auth_header())
+            .send()?;
+
+        if resp.status != hyper::status::StatusCode::Ok {
+            Err(B2Error::from_response(resp))
+        } else {
+            Ok(serde_json::from_reader(resp)?)
+        }
+    }
+
     /// Performs a [b2_hide_file][1] api call.
     ///
     /// This function creates a hide marker with the given name.
