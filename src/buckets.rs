@@ -18,20 +18,20 @@
 //! [`GetBucket`]: struct.GetBucket.html
 //! [`ListBuckets`]: struct.ListBuckets.html
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod bucket_type;
 mod create_bucket;
 mod delete_bucket;
-mod list_buckets;
 mod get_bucket;
+mod list_buckets;
 mod update_bucket;
 pub use self::bucket_type::BucketType;
 pub use self::create_bucket::CreateBucket;
 pub use self::delete_bucket::DeleteBucket;
-pub use self::list_buckets::{ListBuckets, ListBucketsFuture};
 pub use self::get_bucket::{GetBucket, GetBucketFuture};
+pub use self::list_buckets::{ListBuckets, ListBucketsFuture};
 pub use self::update_bucket::UpdateBucket;
 
 /// This struct contains a lifecycle rule as specified in the [backblaze b2

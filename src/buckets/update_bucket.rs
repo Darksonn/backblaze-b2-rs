@@ -1,17 +1,17 @@
-use crate::BytesString;
 use crate::auth::B2Authorization;
 use crate::buckets::{Bucket, BucketType, CorsRule, LifecycleRule, NoBucketInfo};
+use crate::BytesString;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_update_bucket`] api call.
@@ -199,4 +199,3 @@ impl<'a, Info: Serialize> ApiCall for UpdateBucket<'a, Info> {
         B2Future::err(err)
     }
 }
-

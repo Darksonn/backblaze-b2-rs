@@ -1,16 +1,16 @@
-use crate::auth::B2Authorization;
 use crate::auth::keys::Key;
+use crate::auth::B2Authorization;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_delete_key`] api call.
@@ -60,10 +60,7 @@ pub struct DeleteKey<'a> {
 impl<'a> DeleteKey<'a> {
     /// Create a new api call with the specified capabilities and name.
     pub fn new(auth: &'a B2Authorization, key_id: &'a str) -> Self {
-        DeleteKey {
-            auth,
-            key_id,
-        }
+        DeleteKey { auth, key_id }
     }
 }
 
@@ -97,4 +94,3 @@ impl<'a> ApiCall for DeleteKey<'a> {
         B2Future::err(err)
     }
 }
-

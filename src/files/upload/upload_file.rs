@@ -1,15 +1,15 @@
-use crate::files::upload::{UploadUrl, UploadFileInfo, SimpleFileInfo};
+use crate::files::upload::{SimpleFileInfo, UploadFileInfo, UploadUrl};
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
 use crate::client::ApiCall;
+use crate::B2Error;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::{TryFrom, TryInto};
 
 /// The [`b2_upload_file`] api call.
@@ -106,7 +106,7 @@ impl<'a, Info: UploadFileInfo<'a>> ApiCall for UploadFile<'a, Info> {
         Ok(map)
     }
     fn body(&mut self) -> Result<Body, B2Error> {
-         Ok(self.body.take().expect("body() called twice on UploadFile"))
+        Ok(self.body.take().expect("body() called twice on UploadFile"))
     }
     fn finalize(self, fut: ResponseFuture) -> B2Future<UploadUrl> {
         B2Future::new(fut)

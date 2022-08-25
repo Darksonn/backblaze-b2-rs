@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 /// A type that can be used as file info when uploading.
 ///
@@ -72,11 +72,11 @@ impl<'a> Iterator for SimpleFileInfoIter<'a> {
         self.last_modified
             .take()
             .map(|lm| ("src_last_modified_millis", lm))
-            .or_else(||
-                 self.content_disposition
+            .or_else(|| {
+                self.content_disposition
                     .take()
                     .map(|cd| ("b2-content-disposition", cd))
-            )
+            })
     }
 }
 
@@ -102,7 +102,7 @@ where
     type Item = (&'a str, &'a str);
     #[inline]
     fn next(&mut self) -> Option<(&'a str, &'a str)> {
-        self.real.next().map(|(k,v)| (k.as_ref(), v.as_ref()))
+        self.real.next().map(|(k, v)| (k.as_ref(), v.as_ref()))
     }
 }
 
@@ -119,7 +119,7 @@ where
 }
 
 pub struct HashMapIter<'a, K, V> {
-    real: std::collections::hash_map::Iter<'a, K, V>
+    real: std::collections::hash_map::Iter<'a, K, V>,
 }
 impl<'a, K, V> Iterator for HashMapIter<'a, K, V>
 where
@@ -129,7 +129,7 @@ where
     type Item = (&'a str, &'a str);
     #[inline]
     fn next(&mut self) -> Option<(&'a str, &'a str)> {
-        self.real.next().map(|(k,v)| (k.as_ref(), v.as_ref()))
+        self.real.next().map(|(k, v)| (k.as_ref(), v.as_ref()))
     }
 }
 
@@ -146,7 +146,7 @@ where
 }
 
 pub struct BTreeIter<'a, K, V> {
-    real: std::collections::btree_map::Iter<'a, K, V>
+    real: std::collections::btree_map::Iter<'a, K, V>,
 }
 impl<'a, K, V> Iterator for BTreeIter<'a, K, V>
 where
@@ -156,6 +156,6 @@ where
     type Item = (&'a str, &'a str);
     #[inline]
     fn next(&mut self) -> Option<(&'a str, &'a str)> {
-        self.real.next().map(|(k,v)| (k.as_ref(), v.as_ref()))
+        self.real.next().map(|(k, v)| (k.as_ref(), v.as_ref()))
     }
 }

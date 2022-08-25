@@ -3,14 +3,14 @@ use crate::files::File;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_get_file_info`] api call.
@@ -29,10 +29,7 @@ pub struct GetFileInfo<'a> {
 impl<'a> GetFileInfo<'a> {
     /// Create a new api call for the specified file.
     pub fn new(auth: &'a B2Authorization, file_id: &'a str) -> Self {
-        GetFileInfo {
-            auth,
-            file_id,
-        }
+        GetFileInfo { auth, file_id }
     }
 }
 

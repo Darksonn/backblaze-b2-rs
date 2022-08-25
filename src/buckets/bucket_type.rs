@@ -1,7 +1,7 @@
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, Serializer};
-use std::fmt;
 use std::convert::Infallible;
+use std::fmt;
 
 /// Specifies the type of a bucket on backblaze.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -10,7 +10,7 @@ pub enum BucketType {
     Public,
     Private,
     Snapshot,
-    Other(String)
+    Other(String),
 }
 impl BucketType {
     /// This function returns the string needed to specify the bucket type to the

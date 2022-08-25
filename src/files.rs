@@ -1,11 +1,11 @@
 //! File manipulation.
 
-use serde::{Serialize, Deserialize};
 use serde::de::Deserializer;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub mod upload;
 pub mod download;
+pub mod upload;
 
 mod action;
 pub use self::action::Action;

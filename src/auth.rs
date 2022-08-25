@@ -28,25 +28,25 @@
 use crate::BytesString;
 use bytes::Bytes;
 
-use serde::{Deserialize, Serialize};
 use base64::encode as b64encode;
+use serde::{Deserialize, Serialize};
 
 use futures::future::FusedFuture;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
 use crate::client::ApiCall;
+use crate::B2Error;
 use http::header::{HeaderMap, HeaderValue};
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 
-use std::path::Path;
 use std::fs::File;
+use std::path::Path;
 
 mod capabilities;
 mod credentials_deserialize;
@@ -100,7 +100,7 @@ impl B2Credentials {
         let buffer = Bytes::from(format!("{}:{}", account_id, key));
         let auth_string = Bytes::from(format!("Basic {}", b64encode(&buffer[..])));
         let id = buffer.slice(0..account_id.len());
-        let key = buffer.slice(id.len() + 1 ..);
+        let key = buffer.slice(id.len() + 1..);
         B2Credentials {
             id: BytesString::new(id).unwrap(),
             key: BytesString::new(key).unwrap(),
@@ -198,7 +198,8 @@ impl<'a> ApiCall for AuthorizeAccount<'a> {
     const METHOD: Method = Method::GET;
     fn url(&self) -> Result<Uri, B2Error> {
         Ok(Uri::from_static(
-                "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"))
+            "https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+        ))
     }
     fn headers(&self) -> Result<HeaderMap, B2Error> {
         let mut map = HeaderMap::new();
@@ -222,8 +223,6 @@ impl<'a> ApiCall for AuthorizeAccount<'a> {
         }
     }
 }
-
-
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -341,4 +340,3 @@ impl B2Authorization {
         self.authorization_token.clone()
     }
 }
-

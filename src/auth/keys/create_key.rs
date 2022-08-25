@@ -1,17 +1,17 @@
-use crate::BytesString;
-use crate::auth::{B2Authorization, Capabilities};
 use crate::auth::keys::KeyWithSecret;
+use crate::auth::{B2Authorization, Capabilities};
+use crate::BytesString;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_create_key`] api call.
@@ -66,7 +66,7 @@ impl<'a> CreateKey<'a> {
     pub fn new(
         auth: &'a B2Authorization,
         capabilities: Capabilities,
-        name: &'a str
+        name: &'a str,
     ) -> Self {
         CreateKey {
             auth,

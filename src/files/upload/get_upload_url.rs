@@ -3,14 +3,14 @@ use crate::files::upload::UploadUrl;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_get_upload_url`] api call.
@@ -28,14 +28,8 @@ pub struct GetUploadUrl<'a> {
 }
 impl<'a> GetUploadUrl<'a> {
     /// Create an api call to request an upload url for the specified bucket.
-    pub fn new(
-        auth: &'a B2Authorization,
-        bucket_id: &'a str,
-    ) -> Self {
-        GetUploadUrl {
-            auth,
-            bucket_id,
-        }
+    pub fn new(auth: &'a B2Authorization, bucket_id: &'a str) -> Self {
+        GetUploadUrl { auth, bucket_id }
     }
 }
 

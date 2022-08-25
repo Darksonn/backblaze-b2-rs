@@ -21,12 +21,12 @@ use std::fmt;
 
 // pub mod api;
 // pub mod source;
-pub mod b2_future;
-pub mod client;
 pub mod auth;
+pub mod b2_future;
 pub mod buckets;
-pub mod files;
 mod bytes_string;
+pub mod client;
+pub mod files;
 // pub mod prelude;
 // pub mod stream_util;
 // pub mod throttle;
@@ -34,7 +34,9 @@ pub use bytes_string::BytesString;
 
 /// Parse the content length header.
 fn get_content_length(parts: &http::response::Parts) -> usize {
-    parts.headers.get(http::header::CONTENT_LENGTH)
+    parts
+        .headers
+        .get(http::header::CONTENT_LENGTH)
         .and_then(|size_str| size_str.to_str().ok())
         .and_then(|size_str| size_str.parse().ok())
         .unwrap_or(0)
@@ -42,21 +44,24 @@ fn get_content_length(parts: &http::response::Parts) -> usize {
 
 mod header_serde {
     use crate::BytesString;
-    use serde::{Deserialize, Serialize};
+    use http::header::HeaderValue;
     use serde::de::Deserializer;
     use serde::ser::Serializer;
-    use http::header::HeaderValue;
+    use serde::{Deserialize, Serialize};
 
     pub fn serialize<S>(header: &HeaderValue, s: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
-        let v = header.to_str()
+        let v = header
+            .to_str()
             .map_err(<S::Error as serde::ser::Error>::custom)?;
         v.serialize(s)
     }
 
     pub fn deserialize<'de, D>(d: D) -> Result<HeaderValue, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         BytesString::deserialize(d)?
             .as_header()
@@ -132,16 +137,14 @@ impl B2Error {
         match self {
             B2Error::B2Error(_, B2ErrorMessage { status, .. }) => {
                 *status >= 500 && *status <= 599
-            },
+            }
             _ => false,
         }
     }
     /// Returns true if we are making too many requests.
     pub fn is_too_many_requests(&self) -> bool {
         match self {
-            B2Error::B2Error(_, B2ErrorMessage { status, .. }) => {
-                *status == 429
-            },
+            B2Error::B2Error(_, B2ErrorMessage { status, .. }) => *status == 429,
             _ => false,
         }
     }
@@ -245,13 +248,15 @@ impl B2Error {
             if message.starts_with("Bucket is not authorized: ") {
                 return true;
             }
-            matches!(message.as_str(),
+            matches!(
+                message.as_str(),
                 "Invalid authorization token" |
                 "Authorization token for wrong cluster" |
                 "Not authorized" |
                 //"No Authorization header" |
                 //"Authorization token is missing" |
-                "AccountId bad")
+                "AccountId bad"
+            )
         } else {
             false
         }
@@ -263,15 +268,17 @@ impl B2Error {
     /// server.
     pub fn is_invalid_file_name(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            matches!(message.as_str(),
-                "File names must contain at least one character" |
-                "File names in UTF8 must be no more than 1000 bytes" |
-                "File names must not start with '/'" |
-                "File names must not end with '/'" |
-                "File names must not contain '\\'" |
-                "File names must not contain DELETE" |
-                "File names must not contain '//'" |
-                "File names segment must not be more than 250 bytes")
+            matches!(
+                message.as_str(),
+                "File names must contain at least one character"
+                    | "File names in UTF8 must be no more than 1000 bytes"
+                    | "File names must not start with '/'"
+                    | "File names must not end with '/'"
+                    | "File names must not contain '\\'"
+                    | "File names must not contain DELETE"
+                    | "File names must not contain '//'"
+                    | "File names segment must not be more than 250 bytes"
+            )
         } else {
             false
         }
@@ -302,7 +309,10 @@ impl B2Error {
             if message.starts_with("Bucket ") && message.contains("does not have file:") {
                 return true;
             }
-            matches!(message.as_str(), "file_state_deleted" | "file_state_none" | "file_state_unknown")
+            matches!(
+                message.as_str(),
+                "file_state_deleted" | "file_state_none" | "file_state_unknown"
+            )
         } else {
             false
         }
@@ -458,7 +468,11 @@ impl B2Error {
     /// Returns true if the issue is regarding an invalid file prefix.
     pub fn is_prefix_issue(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            matches!(message.as_str(), "Prefix must not start with delimiter" | "Prefix must be 1 or more characters long")
+            matches!(
+                message.as_str(),
+                "Prefix must not start with delimiter"
+                    | "Prefix must be 1 or more characters long"
+            )
         } else {
             false
         }

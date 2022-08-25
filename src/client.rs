@@ -1,13 +1,13 @@
 //! The client used for executing api calls.
 
-use hyper_tls::HttpsConnector;
 use hyper::client::{Client, HttpConnector, ResponseFuture};
 use hyper::Body;
+use hyper_tls::HttpsConnector;
 
-use http::method::Method;
-use http::uri::Uri;
 use http::header::{HeaderMap, HeaderValue};
+use http::method::Method;
 use http::request::Builder;
+use http::uri::Uri;
 
 use crate::B2Error;
 use std::future::Future;
@@ -26,9 +26,7 @@ impl B2Client {
     /// Creates a new client with the default hyper backend.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::with_client(
-            Client::builder().build(HttpsConnector::new())
-        )
+        Self::with_client(Client::builder().build(HttpsConnector::new()))
     }
     /// Creates a new client with the provided hyper backend.
     pub fn with_client(client: HyperClient) -> Self {
@@ -47,9 +45,7 @@ impl B2Client {
             Err(err) => return api.error(err),
         };
 
-        let mut builder = Builder::new()
-            .method(Api::METHOD)
-            .uri(url);
+        let mut builder = Builder::new().method(Api::METHOD).uri(url);
 
         // If headers_mut returns None, then the call to body() below will fail
         // with an Err(err), in turn resulting in this method returning an error.
@@ -59,12 +55,15 @@ impl B2Client {
             match api.headers() {
                 Ok(headers) => {
                     *headers_mut = headers;
-                },
+                }
                 Err(err) => return api.error(err),
             }
         }
 
-        match api.body().and_then(|body| builder.body(body).map_err(B2Error::from)) {
+        match api
+            .body()
+            .and_then(|body| builder.body(body).map_err(B2Error::from))
+        {
             Ok(request) => api.finalize(self.inner.request(request)),
             Err(err) => api.error(err),
         }
