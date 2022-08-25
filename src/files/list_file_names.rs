@@ -148,7 +148,7 @@ impl<'a> ApiCall for ListFileNames<'a> {
     }
     fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&ListFileNamesRequest {
-            bucket_id: &self.bucket_id,
+            bucket_id: self.bucket_id,
             start_file_name: self.start_file_name,
             max_file_count: self.max_file_count,
             prefix: self.prefix,

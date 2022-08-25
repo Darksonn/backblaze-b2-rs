@@ -184,7 +184,7 @@ impl<'a, Info: Serialize> ApiCall for UpdateBucket<'a, Info> {
     fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&UpdateBucketRequest {
             account_id: &self.auth.account_id,
-            bucket_id: &self.bucket_id,
+            bucket_id: self.bucket_id,
             bucket_type: self.bucket_type.as_ref(),
             bucket_info: self.bucket_info.as_ref(),
             cors_rules: self.cors_rules,

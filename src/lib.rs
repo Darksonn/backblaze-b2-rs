@@ -51,7 +51,7 @@ mod header_serde {
         where S: Serializer
     {
         let v = header.to_str()
-            .map_err(|err| <S::Error as serde::ser::Error>::custom(err))?;
+            .map_err(<S::Error as serde::ser::Error>::custom)?;
         v.serialize(s)
     }
 
@@ -60,7 +60,7 @@ mod header_serde {
     {
         BytesString::deserialize(d)?
             .as_header()
-            .map_err(|err| <D::Error as serde::de::Error>::custom(err))
+            .map_err(<D::Error as serde::de::Error>::custom)
     }
 }
 
@@ -186,12 +186,7 @@ impl B2Error {
     /// requests.
     pub fn should_back_off(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { status, .. }) = self {
-            match status {
-                408 => true,
-                429 => true,
-                503 => true,
-                _ => false,
-            }
+            matches!(status, 408 | 429 | 503)
         } else {
             false
         }
@@ -202,24 +197,19 @@ impl B2Error {
     /// Returns true if the error is related to invalid credentials during authentication.
     pub fn is_credentials_issue(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            match message.as_str() {
-                "B2 has not been enabled for this account" => true,
-                "User is in B2 suspend" => true,
-                "Cannot authorize domain site license account" => true,
-                "Invalid authorization" => true,
-                "Account is missing a mobile phone number. Please update account settings." => true,
-                _ => false
-            }
+            matches!(message.as_str(),
+                "B2 has not been enabled for this account" |
+                "User is in B2 suspend" |
+                "Cannot authorize domain site license account" |
+                "Invalid authorization" |
+                "Account is missing a mobile phone number. Please update account settings.")
         } else {
             false
         }
     }
     pub fn is_wrong_credentials(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref code, .. }) = self {
-            match code.as_str() {
-                "bad_auth_token" => true,
-                _ => false,
-            }
+            matches!(code.as_str(), "bad_auth_token")
         } else {
             false
         }
@@ -255,15 +245,13 @@ impl B2Error {
             if message.starts_with("Bucket is not authorized: ") {
                 return true;
             }
-            match message.as_str() {
-                "Invalid authorization token" => true,
-                "Authorization token for wrong cluster" => true,
-                "Not authorized" => true,
-                //"No Authorization header" => true,
-                //"Authorization token is missing" => true,
-                "AccountId bad" => true,
-                _ => false,
-            }
+            matches!(message.as_str(),
+                "Invalid authorization token" |
+                "Authorization token for wrong cluster" |
+                "Not authorized" |
+                //"No Authorization header" |
+                //"Authorization token is missing" |
+                "AccountId bad")
         } else {
             false
         }
@@ -275,17 +263,15 @@ impl B2Error {
     /// server.
     pub fn is_invalid_file_name(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            match message.as_str() {
-                "File names must contain at least one character" => true,
-                "File names in UTF8 must be no more than 1000 bytes" => true,
-                "File names must not start with '/'" => true,
-                "File names must not end with '/'" => true,
-                "File names must not contain '\\'" => true,
-                "File names must not contain DELETE" => true,
-                "File names must not contain '//'" => true,
-                "File names segment must not be more than 250 bytes" => true,
-                _ => false,
-            }
+            matches!(message.as_str(),
+                "File names must contain at least one character" |
+                "File names in UTF8 must be no more than 1000 bytes" |
+                "File names must not start with '/'" |
+                "File names must not end with '/'" |
+                "File names must not contain '\\'" |
+                "File names must not contain DELETE" |
+                "File names must not contain '//'" |
+                "File names segment must not be more than 250 bytes")
         } else {
             false
         }
@@ -316,12 +302,7 @@ impl B2Error {
             if message.starts_with("Bucket ") && message.contains("does not have file:") {
                 return true;
             }
-            match message.as_str() {
-                "file_state_deleted" => true,
-                "file_state_none" => true,
-                "file_state_unknown" => true,
-                _ => false,
-            }
+            matches!(message.as_str(), "file_state_deleted" | "file_state_none" | "file_state_unknown")
         } else {
             false
         }
@@ -469,12 +450,7 @@ impl B2Error {
     /// not allowed.
     pub fn is_snapshot_interaction_failure(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            match message.as_str() {
-                "Snapshot buckets are reserved for Backblaze use" => true,
-                "Allow snapshot header must be specified when deleting a file from a snapshot bucket" => true,
-                "Cannot change a bucket to a snapshot bucket" => true,
-                _ => false
-            }
+            matches!(message.as_str(), "Snapshot buckets are reserved for Backblaze use" | "Allow snapshot header must be specified when deleting a file from a snapshot bucket" | "Cannot change a bucket to a snapshot bucket")
         } else {
             false
         }
@@ -482,11 +458,7 @@ impl B2Error {
     /// Returns true if the issue is regarding an invalid file prefix.
     pub fn is_prefix_issue(&self) -> bool {
         if let B2Error::B2Error(_, B2ErrorMessage { ref message, .. }) = self {
-            match message.as_str() {
-                "Prefix must not start with delimiter" => true,
-                "Prefix must be 1 or more characters long" => true,
-                _ => false,
-            }
+            matches!(message.as_str(), "Prefix must not start with delimiter" | "Prefix must be 1 or more characters long")
         } else {
             false
         }

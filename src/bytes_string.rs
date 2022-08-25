@@ -27,6 +27,7 @@ impl BytesString {
         unsafe { from_utf8_unchecked(&self.inner[..]) }
     }
     /// This method returns the length of the string.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len()
     }

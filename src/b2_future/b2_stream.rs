@@ -106,10 +106,7 @@ impl<T: DeserializeOwned> B2Stream<T> {
 impl<T: DeserializeOwned> FusedStream for B2Stream<T> {
     /// Returns `true` if this stream has completed.
     fn is_terminated(&self) -> bool {
-        match self.state {
-            State::Done() => true,
-            _ => false,
-        }
+        matches!(self.state, State::Done())
     }
 }
 impl<T: DeserializeOwned> Stream for B2Stream<T> {
@@ -179,7 +176,7 @@ impl<T: DeserializeOwned> State<T> {
                 }
                 Err(err) => {
                     *self = State::Done();
-                    Some(Poll::Ready(Some(Err(err.into()))))
+                    Some(Poll::Ready(Some(Err(err))))
                 }
             },
             State::CollectingError(ref parts, ref mut body, ref mut bytes) => {
@@ -189,11 +186,11 @@ impl<T: DeserializeOwned> State<T> {
                         bytes.extend(chunk.as_ref());
                         None
                     }
-                    Poll::Ready(None) => match from_slice(&bytes) {
+                    Poll::Ready(None) => match from_slice(bytes) {
                         Ok(err_msg) => {
                             let err = B2Error::B2Error(parts.status, err_msg);
                             *self = State::Done();
-                            Some(Poll::Ready(Some(Err(err.into()))))
+                            Some(Poll::Ready(Some(Err(err))))
                         }
                         Err(err) => {
                             *self = State::Done();

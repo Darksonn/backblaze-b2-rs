@@ -24,6 +24,7 @@ pub struct B2Client {
 
 impl B2Client {
     /// Creates a new client with the default hyper backend.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_client(
             Client::builder().build(HttpsConnector::new())
