@@ -1,6 +1,6 @@
-use crate::BytesString;
 use crate::auth::B2Authorization;
 use crate::buckets::{Bucket, BucketType};
+use crate::BytesString;
 
 use serde::{Deserialize, Serialize};
 
@@ -9,14 +9,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::B2Error;
 use crate::b2_future::{B2Future, B2Stream};
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_list_buckets`] api call.
@@ -125,10 +125,14 @@ impl<'a> ApiCall for ListBuckets<'a> {
         })
     }
     fn finalize(self, fut: ResponseFuture) -> ListBucketsFuture {
-        ListBucketsFuture { future: B2Future::new(fut) }
+        ListBucketsFuture {
+            future: B2Future::new(fut),
+        }
     }
     fn error(self, err: B2Error) -> ListBucketsFuture {
-        ListBucketsFuture { future: B2Future::err(err) }
+        ListBucketsFuture {
+            future: B2Future::err(err),
+        }
     }
 }
 

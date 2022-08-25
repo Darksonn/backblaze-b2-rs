@@ -216,4 +216,3 @@ impl From<KeyWithSecret> for Key {
         key.split().0
     }
 }
-

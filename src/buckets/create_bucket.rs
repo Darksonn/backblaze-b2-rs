@@ -1,17 +1,17 @@
-use crate::BytesString;
 use crate::auth::B2Authorization;
 use crate::buckets::{Bucket, BucketType, CorsRule, LifecycleRule, NoBucketInfo};
+use crate::BytesString;
 
 use serde::Serialize;
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// The [`b2_create_bucket`] api call.
@@ -107,10 +107,7 @@ impl<'a, I: Serialize> CreateBucket<'a, I> {
     ///
     /// [1]: https://www.backblaze.com/b2/docs/cors_rules.html
     pub fn cors_rules(self, cors_rules: &'a [CorsRule]) -> Self {
-        CreateBucket {
-            cors_rules,
-            ..self
-        }
+        CreateBucket { cors_rules, ..self }
     }
     /// Set the lifetime rules assigned to this bucket.
     ///
@@ -165,4 +162,3 @@ impl<'a, Info: Serialize> ApiCall for CreateBucket<'a, Info> {
         B2Future::err(err)
     }
 }
-

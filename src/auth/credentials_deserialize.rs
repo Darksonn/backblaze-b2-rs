@@ -1,8 +1,8 @@
-use crate::BytesString;
 use crate::auth::B2Credentials;
+use crate::BytesString;
 
-use serde::Deserialize;
 use serde::de::Deserializer;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct Helper {

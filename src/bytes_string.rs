@@ -1,7 +1,7 @@
 use bytes::Bytes;
+use http::header::{HeaderValue, InvalidHeaderValue};
 use std::fmt;
 use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
-use http::header::{HeaderValue, InvalidHeaderValue};
 
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
@@ -83,8 +83,6 @@ impl<'de> Deserialize<'de> for BytesString {
     where
         D: Deserializer<'de>,
     {
-        String::deserialize(deserializer)
-            .map(BytesString::from)
+        String::deserialize(deserializer).map(BytesString::from)
     }
 }
-

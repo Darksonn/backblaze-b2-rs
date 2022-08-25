@@ -1,16 +1,16 @@
-use std::future::Future;
-use std::task::{Context, Poll};
-use std::pin::Pin;
-use futures::stream::{Stream, FusedStream};
+use futures::stream::{FusedStream, Stream};
 use http::response::Parts;
 use http::StatusCode;
 use hyper::{client::ResponseFuture, Body};
 use serde::de::DeserializeOwned;
 use serde_json::from_slice;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use std::cmp::min;
-use std::mem;
 use std::fmt;
+use std::mem;
 
 use crate::B2Error;
 
@@ -79,7 +79,7 @@ impl<T: DeserializeOwned> B2Stream<T> {
                 state: State::Connecting(fut),
                 capacity: cap,
             },
-            FutState::Collecting(parts, body, vec) =>
+            FutState::Collecting(parts, body, vec) => {
                 if parts.status == StatusCode::OK {
                     let partial = PartialJson::from_vec(vec, 2);
                     B2Stream {
@@ -91,7 +91,8 @@ impl<T: DeserializeOwned> B2Stream<T> {
                         state: State::CollectingError(parts, body, vec),
                         capacity: cap,
                     }
-                },
+                }
+            }
             FutState::FailImmediately(err) => B2Stream {
                 state: State::FailImmediately(err),
                 capacity: cap,
@@ -111,9 +112,10 @@ impl<T: DeserializeOwned> FusedStream for B2Stream<T> {
 }
 impl<T: DeserializeOwned> Stream for B2Stream<T> {
     type Item = Result<T, B2Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<Result<T, B2Error>>>
-    {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<T, B2Error>>> {
         let this = self.get_mut();
         let cap = this.capacity;
         let state_ref = &mut this.state;
@@ -127,53 +129,45 @@ impl<T: DeserializeOwned> Stream for B2Stream<T> {
 
 impl<T: DeserializeOwned> State<T> {
     #[inline]
-    fn poll(&mut self, cx: &mut Context<'_>, cap: usize)
-        -> Option<Poll<Option<Result<T, B2Error>>>>
-    {
+    fn poll(
+        &mut self,
+        cx: &mut Context<'_>,
+        cap: usize,
+    ) -> Option<Poll<Option<Result<T, B2Error>>>> {
         match self {
-            State::Connecting(ref mut fut) => {
-                match Pin::new(fut).poll(cx) {
-                    Poll::Pending => {
-                        Some(Poll::Pending)
+            State::Connecting(ref mut fut) => match Pin::new(fut).poll(cx) {
+                Poll::Pending => Some(Poll::Pending),
+                Poll::Ready(Ok(resp)) => {
+                    let (parts, body) = resp.into_parts();
+                    if parts.status == StatusCode::OK {
+                        let json = PartialJson::new(cap, 2);
+                        *self = State::Collecting(body, json);
+                    } else {
+                        let size = min(crate::get_content_length(&parts), 0x1000);
+                        *self =
+                            State::CollectingError(parts, body, Vec::with_capacity(size));
                     }
-                    Poll::Ready(Ok(resp)) => {
-                        let (parts, body) = resp.into_parts();
-                        if parts.status == StatusCode::OK {
-                            let json = PartialJson::new(cap, 2);
-                            *self = State::Collecting(body, json);
-                        } else {
-                            let size = min(crate::get_content_length(&parts), 0x1000);
-                            *self = State::CollectingError(parts, body,
-                                                           Vec::with_capacity(size));
-                        }
+                    None
+                }
+                Poll::Ready(Err(e)) => {
+                    *self = State::Done();
+                    Some(Poll::Ready(Some(Err(e.into()))))
+                }
+            },
+            State::Collecting(ref mut body, ref mut json) => match json.next() {
+                Ok(Some(value)) => Some(Poll::Ready(Some(Ok(value)))),
+                Ok(None) => match Pin::new(body).poll_next(cx) {
+                    Poll::Pending => Some(Poll::Pending),
+                    Poll::Ready(Some(Ok(chunk))) => {
+                        json.push(&chunk[..]);
                         None
                     }
-                    Poll::Ready(Err(e)) => {
+                    Poll::Ready(None) => Some(Poll::Ready(None)),
+                    Poll::Ready(Some(Err(e))) => {
                         *self = State::Done();
                         Some(Poll::Ready(Some(Err(e.into()))))
                     }
-                }
-            }
-            State::Collecting(ref mut body, ref mut json) => match json.next() {
-                Ok(Some(value)) => {
-                    Some(Poll::Ready(Some(Ok(value))))
-                }
-                Ok(None) => {
-                    match Pin::new(body).poll_next(cx) {
-                        Poll::Pending => Some(Poll::Pending),
-                        Poll::Ready(Some(Ok(chunk))) => {
-                            json.push(&chunk[..]);
-                            None
-                        }
-                        Poll::Ready(None) => {
-                            Some(Poll::Ready(None))
-                        }
-                        Poll::Ready(Some(Err(e))) => {
-                            *self = State::Done();
-                            Some(Poll::Ready(Some(Err(e.into()))))
-                        }
-                    }
-                }
+                },
                 Err(err) => {
                     *self = State::Done();
                     Some(Poll::Ready(Some(Err(err))))
@@ -209,10 +203,7 @@ impl<T: DeserializeOwned> State<T> {
                 *self = State::Done();
                 Some(Poll::Ready(Some(Err(err))))
             }
-            State::Done() => {
-                Some(Poll::Ready(None))
-            }
+            State::Done() => Some(Poll::Ready(None)),
         }
     }
 }
-

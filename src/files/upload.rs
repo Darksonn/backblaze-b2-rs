@@ -1,16 +1,16 @@
 //! Upload files to backblaze.
 
-use serde::{Serialize, Deserialize};
 use http::header::HeaderValue;
+use serde::{Deserialize, Serialize};
 
 mod get_upload_url;
 mod upload_file;
 mod upload_info;
 
 pub use self::get_upload_url::GetUploadUrl;
-pub use self::upload_info::UploadFileInfo;
-pub use self::upload_info::SimpleFileInfo;
 pub use self::upload_file::UploadFile;
+pub use self::upload_info::SimpleFileInfo;
+pub use self::upload_info::UploadFileInfo;
 
 /// An url that can be used to upload files to backblaze.
 #[derive(Serialize, Deserialize)]

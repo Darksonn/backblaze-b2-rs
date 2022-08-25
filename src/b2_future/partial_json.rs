@@ -1,9 +1,9 @@
+use serde::de::DeserializeOwned;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
-use serde::de::DeserializeOwned;
 
 use serde_json::{from_reader, from_slice};
-use std::io::{Read, Cursor};
+use std::io::{Cursor, Read};
 
 use crate::B2Error;
 
@@ -169,15 +169,19 @@ mod tests {
         while let Some(next) = json.next().unwrap() {
             res.push(next);
         }
-        assert_eq!(res, [
-            Item {
-                a: "test".into(),
-                b: vec![1,2],
-            },
-            Item {
-                a: "test2".into(),
-                b: vec![3,4],
-            }]);
+        assert_eq!(
+            res,
+            [
+                Item {
+                    a: "test".into(),
+                    b: vec![1, 2],
+                },
+                Item {
+                    a: "test2".into(),
+                    b: vec![3, 4],
+                }
+            ]
+        );
     }
     #[test]
     fn partial_json_test_list() {

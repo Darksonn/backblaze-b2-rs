@@ -1,7 +1,7 @@
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, Serializer};
-use std::fmt;
 use std::convert::Infallible;
+use std::fmt;
 
 /// Specifies the type of a bucket on backblaze.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -16,7 +16,7 @@ pub enum Action {
     /// Folder is used to indicate a virtual folder when listing files.
     Folder,
     /// The b2 api may add new types in the future.
-    Other(String)
+    Other(String),
 }
 impl Action {
     /// This function returns the string needed to specify the action to the

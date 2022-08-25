@@ -1,23 +1,23 @@
-use crate::BytesString;
 use crate::auth::B2Authorization;
 use crate::buckets::Bucket;
+use crate::BytesString;
 
-use serde::{Deserialize, Serialize};
 use serde::de::{Deserializer, Error, SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
 
 use futures::future::FusedFuture;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// A filtered [`b2_list_buckets`] api call.
@@ -125,10 +125,14 @@ impl<'a> ApiCall for GetBucket<'a> {
         })
     }
     fn finalize(self, fut: ResponseFuture) -> GetBucketFuture {
-        GetBucketFuture { future: B2Future::new(fut) }
+        GetBucketFuture {
+            future: B2Future::new(fut),
+        }
     }
     fn error(self, err: B2Error) -> GetBucketFuture {
-        GetBucketFuture { future: B2Future::err(err) }
+        GetBucketFuture {
+            future: B2Future::err(err),
+        }
     }
 }
 
@@ -197,9 +201,12 @@ impl<'de> Visitor<'de> for ListAsOptionVisitor {
                         len += 1;
                     }
                     len
-                },
+                }
             };
-            Err(Error::invalid_length(len, &"a list with zero or one elements"))
+            Err(Error::invalid_length(
+                len,
+                &"a list with zero or one elements",
+            ))
         } else {
             Ok(result)
         }
@@ -222,10 +229,10 @@ impl<'de> Visitor<'de> for ListAsOptionVisitor {
 
 #[cfg(test)]
 mod tests {
-    use crate::B2Error;
     use crate::auth::B2Credentials;
-    use crate::client::B2Client;
     use crate::buckets::GetBucket;
+    use crate::client::B2Client;
+    use crate::B2Error;
 
     use futures::future::try_join;
 
@@ -241,18 +248,13 @@ mod tests {
             .take(50)
             .collect();
 
-        let by_name = client.send(
-            GetBucket::by_name(&auth, &random)
-        );
+        let by_name = client.send(GetBucket::by_name(&auth, &random));
 
-        let by_id = client.send(
-            GetBucket::by_id(&auth, &"4a48fe7875c6214145260818")
-        );
+        let by_id = client.send(GetBucket::by_id(&auth, &"4a48fe7875c6214145260818"));
 
         let res = try_join(by_name, by_id).await?;
         assert_eq!(res, (None, None));
 
         Ok(())
     }
-
 }

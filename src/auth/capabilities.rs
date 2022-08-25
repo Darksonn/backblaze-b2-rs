@@ -116,7 +116,10 @@ impl Capabilities {
     /// assert_eq!(list, vec!["readFiles"]);
     /// ```
     pub fn iter(&self) -> CapabilitiesIter {
-        CapabilitiesIter { c: self.clone(), i: 0 }
+        CapabilitiesIter {
+            c: self.clone(),
+            i: 0,
+        }
     }
 }
 
@@ -165,17 +168,61 @@ impl Iterator for CapabilitiesIter {
         loop {
             self.i = self.i.wrapping_add(1);
             match self.i {
-                1 => if self.c.list_keys { return Some("listKeys"); },
-                2 => if self.c.write_keys { return Some("writeKeys"); },
-                3 => if self.c.delete_keys { return Some("deleteKeys"); },
-                4 => if self.c.list_buckets { return Some("listBuckets"); },
-                5 => if self.c.write_buckets { return Some("writeBuckets"); },
-                6 => if self.c.delete_buckets { return Some("deleteBuckets"); },
-                7 => if self.c.list_files { return Some("listFiles"); },
-                8 => if self.c.read_files { return Some("readFiles"); },
-                9 => if self.c.share_files { return Some("shareFiles"); },
-                10 => if self.c.write_files { return Some("writeFiles"); },
-                11 => if self.c.delete_files { return Some("deleteFiles"); },
+                1 => {
+                    if self.c.list_keys {
+                        return Some("listKeys");
+                    }
+                }
+                2 => {
+                    if self.c.write_keys {
+                        return Some("writeKeys");
+                    }
+                }
+                3 => {
+                    if self.c.delete_keys {
+                        return Some("deleteKeys");
+                    }
+                }
+                4 => {
+                    if self.c.list_buckets {
+                        return Some("listBuckets");
+                    }
+                }
+                5 => {
+                    if self.c.write_buckets {
+                        return Some("writeBuckets");
+                    }
+                }
+                6 => {
+                    if self.c.delete_buckets {
+                        return Some("deleteBuckets");
+                    }
+                }
+                7 => {
+                    if self.c.list_files {
+                        return Some("listFiles");
+                    }
+                }
+                8 => {
+                    if self.c.read_files {
+                        return Some("readFiles");
+                    }
+                }
+                9 => {
+                    if self.c.share_files {
+                        return Some("shareFiles");
+                    }
+                }
+                10 => {
+                    if self.c.write_files {
+                        return Some("writeFiles");
+                    }
+                }
+                11 => {
+                    if self.c.delete_files {
+                        return Some("deleteFiles");
+                    }
+                }
                 _ => return None,
             }
         }
@@ -243,7 +290,7 @@ impl<'de> Visitor<'de> for CapabilityVisitor {
                 "shareFiles" => res.share_files = true,
                 "writeFiles" => res.write_files = true,
                 "deleteFiles" => res.delete_files = true,
-                _ => { /* Ignore unknown to be forward compatible with b2 api. */ },
+                _ => { /* Ignore unknown to be forward compatible with b2 api. */ }
             }
         }
         Ok(res)

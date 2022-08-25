@@ -1,19 +1,19 @@
 //! Futures that parse the `ResponseFuture` returned from hyper.
 
-use std::future::Future;
-use std::task::{Context, Poll};
-use std::pin::Pin;
 use futures::future::FusedFuture;
 use futures::stream::Stream;
 use http::response::Parts;
 use http::StatusCode;
 use hyper::{client::ResponseFuture, Body};
 use serde::de::DeserializeOwned;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use std::cmp::min;
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
-use std::fmt;
 
 use crate::B2Error;
 
@@ -93,28 +93,22 @@ impl<T: DeserializeOwned> State<T> {
     #[inline]
     fn poll(&mut self, cx: &mut Context<'_>) -> Option<Poll<Result<T, B2Error>>> {
         match self {
-            State::Connecting(ref mut fut) => {
-                match Pin::new(fut).poll(cx) {
-                    Poll::Pending => {
-                        Some(Poll::Pending)
-                    }
-                    Poll::Ready(Ok(resp)) => {
-                        let (parts, body) = resp.into_parts();
-                        let size = min(crate::get_content_length(&parts), 0x1000000);
-                        *self = State::Collecting(parts, body, Vec::with_capacity(size));
-                        None
-                    }
-                    Poll::Ready(Err(e)) => {
-                        *self = State::done();
-                        Some(Poll::Ready(Err(e.into())))
-                    }
+            State::Connecting(ref mut fut) => match Pin::new(fut).poll(cx) {
+                Poll::Pending => Some(Poll::Pending),
+                Poll::Ready(Ok(resp)) => {
+                    let (parts, body) = resp.into_parts();
+                    let size = min(crate::get_content_length(&parts), 0x1000000);
+                    *self = State::Collecting(parts, body, Vec::with_capacity(size));
+                    None
+                }
+                Poll::Ready(Err(e)) => {
+                    *self = State::done();
+                    Some(Poll::Ready(Err(e.into())))
                 }
             },
             State::Collecting(ref parts, ref mut body, ref mut bytes) => {
                 match Pin::new(body).poll_next(cx) {
-                    Poll::Pending => {
-                        Some(Poll::Pending)
-                    }
+                    Poll::Pending => Some(Poll::Pending),
                     Poll::Ready(Some(Ok(chunk))) => {
                         bytes.extend(chunk.as_ref());
                         None
@@ -131,7 +125,7 @@ impl<T: DeserializeOwned> State<T> {
                                     let err = B2Error::B2Error(parts.status, err_msg);
                                     Some(Poll::Ready(Err(err)))
                                 }
-                                Err(e) => Some(Poll::Ready(Err(e.into())))
+                                Err(e) => Some(Poll::Ready(Err(e.into()))),
                             }
                         };
                         *self = State::done();
@@ -142,7 +136,7 @@ impl<T: DeserializeOwned> State<T> {
                         Some(Poll::Ready(Err(e.into())))
                     }
                 }
-            },
+            }
             State::FailImmediately(err) => {
                 // Put in a dummy error
                 let err = mem::replace(err, B2Error::ApiInconsistency(String::new()));

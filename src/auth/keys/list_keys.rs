@@ -1,17 +1,17 @@
-use crate::BytesString;
-use crate::auth::B2Authorization;
 use crate::auth::keys::Key;
+use crate::auth::B2Authorization;
+use crate::BytesString;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::B2Error;
 use crate::b2_future::B2Future;
-use crate::client::{ApiCall, serde_body};
+use crate::client::{serde_body, ApiCall};
+use crate::B2Error;
 use http::header::HeaderMap;
 use http::method::Method;
 use http::uri::Uri;
-use hyper::Body;
 use hyper::client::ResponseFuture;
+use hyper::Body;
 use std::convert::TryFrom;
 
 /// A list of keys.
@@ -154,7 +154,7 @@ impl<'a> ListKeys<'a> {
         ListKeys {
             auth,
             max_key_count: None,
-            start_key_id: None
+            start_key_id: None,
         }
     }
     /// Set the maximum number of keys to return. Defaults to 1000, and the maximum is
