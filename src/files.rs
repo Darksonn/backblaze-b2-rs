@@ -58,35 +58,23 @@ pub struct File {
 impl File {
     /// Returns `true` if this is an ordinary completed file, and `false` otherwise.
     pub fn is_ordinary_file(&self) -> bool {
-        match &self.action {
-            Action::Upload => true,
-            _ => false,
-        }
+        matches!(&self.action, Action::Upload)
     }
     /// Returns `true` if this is a hide marker, and `false` otherwise.
     pub fn is_hide_marker(&self) -> bool {
-        match &self.action {
-            Action::Hide => true,
-            _ => false,
-        }
+        matches!(&self.action, Action::Hide)
     }
     /// Returns `true` if this is an unfinished large file, and `false` otherwise.
     pub fn is_unfinished_large_file(&self) -> bool {
-        match &self.action {
-            Action::Start => true,
-            _ => false,
-        }
+        matches!(&self.action, Action::Start)
     }
     /// Returns `true` if this is a virtual folder, and `false` otherwise.
     pub fn is_folder(&self) -> bool {
-        match &self.action {
-            Action::Folder => true,
-            _ => false,
-        }
+        matches!(&self.action, Action::Folder)
     }
     /// Convenience method for borrowing the sha1.
     pub fn sha1(&self) -> Option<&str> {
-        self.content_sha1.as_ref().map(String::as_str)
+        self.content_sha1.as_deref()
     }
 }
 
@@ -97,7 +85,7 @@ where
     Option<T>: Deserialize<'de>,
 {
     let v: Option<T> = Deserialize::deserialize(d)?;
-    Ok(v.unwrap_or_else(Default::default))
+    Ok(v.unwrap_or_default())
 }
 
 fn sha1_deserialize<'de, D>(d: D) -> Result<Option<String>, D::Error>

@@ -151,11 +151,11 @@ impl<'a, Info: Serialize> ApiCall for CreateBucket<'a, Info> {
     fn body(&mut self) -> Result<Body, B2Error> {
         serde_body(&CreateBucketRequest {
             account_id: &self.auth.account_id,
-            bucket_name: &self.bucket_name,
+            bucket_name: self.bucket_name,
             bucket_type: &self.bucket_type,
             bucket_info: &self.bucket_info,
-            cors_rules: &self.cors_rules,
-            lifecycle_rules: &self.lifecycle_rules,
+            cors_rules: self.cors_rules,
+            lifecycle_rules: self.lifecycle_rules,
         })
     }
     fn finalize(self, fut: ResponseFuture) -> B2Future<Bucket> {

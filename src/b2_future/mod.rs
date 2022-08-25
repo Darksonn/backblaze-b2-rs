@@ -79,10 +79,7 @@ impl<T: DeserializeOwned> Future for B2Future<T> {
 impl<T: DeserializeOwned> FusedFuture for B2Future<T> {
     /// Returns `true` if this future has completed.
     fn is_terminated(&self) -> bool {
-        match self.state {
-            State::Done(_) => true,
-            _ => false,
-        }
+        matches!(self.state, State::Done(_))
     }
 }
 
@@ -124,12 +121,12 @@ impl<T: DeserializeOwned> State<T> {
                     }
                     Poll::Ready(None) => {
                         let result = if parts.status == StatusCode::OK {
-                            match ::serde_json::from_slice(&bytes) {
+                            match ::serde_json::from_slice(bytes) {
                                 Ok(t) => Some(Poll::Ready(Ok(t))),
                                 Err(e) => Some(Poll::Ready(Err(e.into()))),
                             }
                         } else {
-                            match ::serde_json::from_slice(&bytes) {
+                            match ::serde_json::from_slice(bytes) {
                                 Ok(err_msg) => {
                                     let err = B2Error::B2Error(parts.status, err_msg);
                                     Some(Poll::Ready(Err(err)))
